@@ -132,8 +132,8 @@ export async function startServer(projectPath?: string): Promise<void> {
           },
         },
         {
-          name: 'get_context',
-          description: 'Get a summary of project knowledge for session bootstrapping. Call this at the start of a session to load relevant context.',
+          name: 'lumencore_activate',
+          description: 'Activate LumenCore for this session. Call this at the start of every session to connect to project memory and load context. Will detect new projects and prompt for initialization.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -250,7 +250,7 @@ export async function startServer(projectPath?: string): Promise<void> {
           };
         }
 
-        case 'get_context': {
+        case 'lumencore_activate': {
           // Check if project is initialized
           const isInitialized = scanner.isProjectInitialized();
           const stats = memoryService.getStats();
