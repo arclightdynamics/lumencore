@@ -8,14 +8,18 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryService } from './services/memory.js';
 import { SearchService } from './services/search.js';
+import { ProjectScanner } from './services/scanner.js';
 import { MemoryCategory, MemoryScope } from './types/index.js';
 import { findProjectRoot } from './utils/paths.js';
 import { closeAllDatabases } from './storage/database.js';
+import path from 'path';
 
 export async function startServer(projectPath?: string): Promise<void> {
   const resolvedPath = projectPath || findProjectRoot();
   const memoryService = new MemoryService(resolvedPath);
   const searchService = new SearchService(resolvedPath);
+  const scanner = new ProjectScanner(resolvedPath, memoryService);
+  const projectName = path.basename(resolvedPath);
 
   const server = new Server(
     {
@@ -148,6 +152,14 @@ export async function startServer(projectPath?: string): Promise<void> {
             },
           },
         },
+        {
+          name: 'init_project',
+          description: 'Initialize LumenCore for the current project. Scans the project directory and captures initial context (structure, key files, tech stack). Call this when starting work on a new or untracked project.',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
       ],
     };
   });
@@ -239,6 +251,25 @@ export async function startServer(projectPath?: string): Promise<void> {
         }
 
         case 'get_context': {
+          // Check if project is initialized
+          const isInitialized = scanner.isProjectInitialized();
+
+          if (!isInitialized) {
+            return {
+              content: [{
+                type: 'text',
+                text: `🆕 New project detected: ${projectName}
+
+This project hasn't been initialized with LumenCore yet. I can scan the project to capture:
+- Directory structure
+- Key configuration files (package.json, etc.)
+- Technology stack
+
+Would you like me to initialize this project? If yes, use the init_project tool.`,
+              }],
+            };
+          }
+
           const context = searchService.getContext({
             categories: args?.categories as MemoryCategory[] | undefined,
             maxTokens: args?.max_tokens as number | undefined,
@@ -246,6 +277,26 @@ export async function startServer(projectPath?: string): Promise<void> {
 
           return {
             content: [{ type: 'text', text: context }],
+          };
+        }
+
+        case 'init_project': {
+          // Check if already initialized
+          if (scanner.isProjectInitialized()) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Project "${projectName}" is already initialized. Use recall or get_context to access stored memories.`,
+              }],
+            };
+          }
+
+          const result = await scanner.scan();
+          return {
+            content: [{
+              type: 'text',
+              text: `✓ Project "${projectName}" initialized!\n\n${result}\n\nUse get_context to see the captured information, or remember to add more project knowledge.`,
+            }],
           };
         }
 

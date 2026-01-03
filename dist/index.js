@@ -11,15 +11,11 @@ async function main() {
             await runSetup();
             break;
         case 'serve':
-            // Check if configured, run setup if not
+            // Auto-configure with defaults if not set up
             const configManager = getConfigManager();
             if (!configManager.isConfigured()) {
-                console.error('LumenCore is not configured.');
-                console.error('Run "lumencore setup" first, or the setup will start now.\n');
-                const success = await runSetup();
-                if (!success) {
-                    process.exit(1);
-                }
+                const { getDefaultConfig } = await import('./config/defaults.js');
+                configManager.save(getDefaultConfig());
             }
             // Get project path from args or environment
             const projectPath = args[1] || process.env.LUMENCORE_PROJECT || process.cwd();
