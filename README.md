@@ -24,15 +24,13 @@ All data stays local on your machine in a SQLite database.
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/arclightdynamics/lumencore.git
-cd lumencore
-
-# Install globally
-npm install -g .
-
 # Run the setup wizard
-lumencore setup
+npx github:arclightdynamics/lumencore setup
+```
+
+All commands can be run via npx:
+```bash
+npx github:arclightdynamics/lumencore <command>
 ```
 
 ## Setup
@@ -51,7 +49,7 @@ The setup wizard will ask you two questions:
 After setup, add LumenCore to Claude Code:
 
 ```bash
-claude mcp add lumencore -- lumencore serve
+claude mcp add lumencore -- npx github:arclightdynamics/lumencore serve
 ```
 
 Or manually add to your Claude Code MCP settings:
@@ -60,8 +58,8 @@ Or manually add to your Claude Code MCP settings:
 {
   "mcpServers": {
     "lumencore": {
-      "command": "lumencore",
-      "args": ["serve"]
+      "command": "npx",
+      "args": ["github:arclightdynamics/lumencore", "serve"]
     }
   }
 }
