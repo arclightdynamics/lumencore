@@ -133,7 +133,7 @@ export async function startServer(projectPath?: string): Promise<void> {
         },
         {
           name: 'lumencore_activate',
-          description: 'Activate LumenCore for this session. Call this at the start of every session to connect to project memory and load context. Will detect new projects and prompt for initialization.',
+          description: 'IMPORTANT: Call this tool IMMEDIATELY at the start of EVERY conversation to activate LumenCore project memory. This connects you to persistent context about this project including architecture decisions, code patterns, and previous work. Always call this first before doing any other work.',
           inputSchema: {
             type: 'object',
             properties: {
