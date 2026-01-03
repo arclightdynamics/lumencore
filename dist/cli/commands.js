@@ -101,6 +101,16 @@ This connects you to persistent project memory containing:
 - Code patterns and conventions
 - Domain concepts
 - Previous work and tasks
+
+## Active Memory Usage
+
+When working on this project:
+- **Search first**: Before making assumptions about architecture, patterns, or past decisions, use \`recall\` to search for relevant memories
+- **Store discoveries**: When you learn something important about this project (a pattern, decision, or concept), use \`remember\` to save it
+- **Examples of when to recall**:
+  - "How does authentication work here?" → \`recall\` with query "authentication"
+  - "What's the database schema?" → \`recall\` with query "database schema"
+  - "Any previous work on X feature?" → \`recall\` with query "X feature"
 `;
 export function initProject() {
     const projectPath = findProjectRoot();
