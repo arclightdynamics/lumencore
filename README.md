@@ -24,8 +24,12 @@ All data stays local on your machine in a SQLite database.
 ## Installation
 
 ```bash
-# Install globally from GitHub
-npm install -g github:arclightdynamics/lumencore
+# Clone the repository
+git clone https://github.com/arclightdynamics/lumencore.git
+cd lumencore
+
+# Install globally
+npm install -g .
 
 # Run the setup wizard
 lumencore setup
