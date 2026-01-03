@@ -1,6 +1,7 @@
 import { getConfigManager } from '../config/manager.js';
-import { getConfigDir } from '../config/defaults.js';
+import { getConfigDir, getDefaultConfig } from '../config/defaults.js';
 import { MemoryService } from '../services/memory.js';
+import { ProjectScanner } from '../services/scanner.js';
 import { findProjectRoot } from '../utils/paths.js';
 import { closeAllDatabases } from '../storage/database.js';
 import fs from 'fs';
@@ -104,31 +105,88 @@ This connects you to persistent project memory containing:
 export function initProject() {
     const projectPath = findProjectRoot();
     const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
+    const claudeSettingsDir = path.join(projectPath, '.claude');
+    const claudeSettingsPath = path.join(claudeSettingsDir, 'settings.local.json');
     const projectName = path.basename(projectPath);
     console.log(LOGO);
     console.log(`  Initializing LumenCore for: ${projectName}\n`);
     try {
+        // 1. Create/update CLAUDE.md
         let content = '';
-        let action = 'Created';
-        // Check if CLAUDE.md already exists
+        let mdAction = 'Created';
         if (fs.existsSync(claudeMdPath)) {
             content = fs.readFileSync(claudeMdPath, 'utf-8');
-            // Check if LumenCore instruction already exists
             if (content.includes('lumencore_activate')) {
-                console.log('✓ CLAUDE.md already contains LumenCore instructions.\n');
-                return;
+                console.log('✓ CLAUDE.md already contains LumenCore instructions.');
             }
-            // Append to existing file
-            content = content.trim() + '\n\n' + LUMENCORE_INSTRUCTION;
-            action = 'Updated';
+            else {
+                content = content.trim() + '\n\n' + LUMENCORE_INSTRUCTION;
+                fs.writeFileSync(claudeMdPath, content, 'utf-8');
+                mdAction = 'Updated';
+                console.log(`✓ ${mdAction} CLAUDE.md with LumenCore instructions.`);
+            }
         }
         else {
             content = LUMENCORE_INSTRUCTION;
+            fs.writeFileSync(claudeMdPath, content, 'utf-8');
+            console.log(`✓ ${mdAction} CLAUDE.md with LumenCore instructions.`);
         }
-        fs.writeFileSync(claudeMdPath, content, 'utf-8');
-        console.log(`✓ ${action} CLAUDE.md with LumenCore instructions.`);
-        console.log(`  Path: ${claudeMdPath}\n`);
-        console.log('LumenCore will now automatically activate in this project.\n');
+        // 2. Configure Claude settings to auto-allow LumenCore tools
+        if (!fs.existsSync(claudeSettingsDir)) {
+            fs.mkdirSync(claudeSettingsDir, { recursive: true });
+        }
+        let settings = {};
+        if (fs.existsSync(claudeSettingsPath)) {
+            try {
+                settings = JSON.parse(fs.readFileSync(claudeSettingsPath, 'utf-8'));
+            }
+            catch {
+                settings = {};
+            }
+        }
+        // Add LumenCore tools to allowed list
+        const allowedTools = settings.allowedTools || [];
+        const lumenTools = [
+            'mcp__lumencore__lumencore_activate',
+            'mcp__lumencore__remember',
+            'mcp__lumencore__recall',
+            'mcp__lumencore__forget',
+            'mcp__lumencore__list_memories',
+            'mcp__lumencore__init_project',
+        ];
+        let toolsAdded = false;
+        for (const tool of lumenTools) {
+            if (!allowedTools.includes(tool)) {
+                allowedTools.push(tool);
+                toolsAdded = true;
+            }
+        }
+        if (toolsAdded) {
+            settings.allowedTools = allowedTools;
+            fs.writeFileSync(claudeSettingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+            console.log('✓ Configured Claude to auto-allow LumenCore tools.');
+        }
+        else {
+            console.log('✓ LumenCore tools already allowed in Claude settings.');
+        }
+        // 3. Scan the project
+        const configManager = getConfigManager();
+        if (!configManager.isConfigured()) {
+            configManager.save(getDefaultConfig());
+        }
+        const memoryService = new MemoryService(projectPath);
+        const scanner = new ProjectScanner(projectPath, memoryService);
+        if (!scanner.isProjectInitialized()) {
+            console.log('\n  Scanning project...');
+            scanner.scan().then((result) => {
+                console.log(result);
+                console.log('\n✓ LumenCore is now active in this project.\n');
+            });
+        }
+        else {
+            console.log('✓ Project already scanned.');
+            console.log('\n✓ LumenCore is now active in this project.\n');
+        }
     }
     catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
