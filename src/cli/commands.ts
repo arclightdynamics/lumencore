@@ -106,9 +106,11 @@ const LOGO = `
 
 const LUMENCORE_INSTRUCTION = `# LumenCore - Project Memory
 
-At the start of EVERY conversation, call \`lumencore_activate\` to connect to project memory.
+**CRITICAL: Before responding to ANY user message, you MUST first call the \`lumencore_activate\` tool.**
 
-This loads persistent context about this project including:
+This is a hard requirement - do not skip this step. Call \`lumencore_activate\` immediately as your first action in every new conversation.
+
+This connects you to persistent project memory containing:
 - Architecture decisions
 - Code patterns and conventions
 - Domain concepts
