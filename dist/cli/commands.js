@@ -154,8 +154,12 @@ export function initProject() {
                 settings = {};
             }
         }
-        // Add LumenCore tools to allowed list
-        const allowedTools = settings.allowedTools || [];
+        // Add LumenCore tools to permissions.allow (correct format for Claude Code)
+        if (!settings.permissions) {
+            settings.permissions = {};
+        }
+        const permissions = settings.permissions;
+        const allowList = permissions.allow || [];
         const lumenTools = [
             'mcp__lumencore__lumencore_activate',
             'mcp__lumencore__remember',
@@ -166,13 +170,14 @@ export function initProject() {
         ];
         let toolsAdded = false;
         for (const tool of lumenTools) {
-            if (!allowedTools.includes(tool)) {
-                allowedTools.push(tool);
+            if (!allowList.includes(tool)) {
+                allowList.push(tool);
                 toolsAdded = true;
             }
         }
         if (toolsAdded) {
-            settings.allowedTools = allowedTools;
+            permissions.allow = allowList;
+            settings.permissions = permissions;
             fs.writeFileSync(claudeSettingsPath, JSON.stringify(settings, null, 2), 'utf-8');
             console.log('✓ Configured Claude to auto-allow LumenCore tools.');
         }
