@@ -104,6 +104,55 @@ const LOGO = `
         ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 `;
 
+const LUMENCORE_INSTRUCTION = `# LumenCore - Project Memory
+
+At the start of EVERY conversation, call \`lumencore_activate\` to connect to project memory.
+
+This loads persistent context about this project including:
+- Architecture decisions
+- Code patterns and conventions
+- Domain concepts
+- Previous work and tasks
+`;
+
+export function initProject(): void {
+  const projectPath = findProjectRoot();
+  const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
+  const projectName = path.basename(projectPath);
+
+  console.log(LOGO);
+  console.log(`  Initializing LumenCore for: ${projectName}\n`);
+
+  try {
+    let content = '';
+    let action = 'Created';
+
+    // Check if CLAUDE.md already exists
+    if (fs.existsSync(claudeMdPath)) {
+      content = fs.readFileSync(claudeMdPath, 'utf-8');
+
+      // Check if LumenCore instruction already exists
+      if (content.includes('lumencore_activate')) {
+        console.log('✓ CLAUDE.md already contains LumenCore instructions.\n');
+        return;
+      }
+
+      // Append to existing file
+      content = content.trim() + '\n\n' + LUMENCORE_INSTRUCTION;
+      action = 'Updated';
+    } else {
+      content = LUMENCORE_INSTRUCTION;
+    }
+
+    fs.writeFileSync(claudeMdPath, content, 'utf-8');
+    console.log(`✓ ${action} CLAUDE.md with LumenCore instructions.`);
+    console.log(`  Path: ${claudeMdPath}\n`);
+    console.log('LumenCore will now automatically activate in this project.\n');
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export function showHelp(): void {
   console.log(LOGO);
   console.log(`  Persistent memory for AI agents
@@ -112,6 +161,7 @@ Usage:
   lumencore <command> [options]
 
 Commands:
+  init      Initialize LumenCore in the current project (creates CLAUDE.md)
   setup     Run the setup wizard
   serve     Start the MCP server (used by Claude Code)
   status    Show current configuration and statistics
@@ -119,12 +169,13 @@ Commands:
   help      Show this help message
 
 Examples:
-  lumencore setup              # Configure LumenCore
+  lumencore init               # Initialize in current project
+  lumencore setup              # Configure LumenCore globally
   lumencore serve              # Start MCP server
   lumencore status             # Check configuration
   lumencore reset --force      # Delete all data
 
 Integration with Claude Code:
-  claude mcp add lumencore -- npx lumencore serve
+  claude mcp add lumencore -- lumencore serve
 `);
 }

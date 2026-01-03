@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { runSetup } from './cli/setup.js';
-import { showStatus, reset, showHelp } from './cli/commands.js';
+import { showStatus, reset, showHelp, initProject } from './cli/commands.js';
 import { startServer } from './server.js';
 import { getConfigManager } from './config/manager.js';
 async function main() {
@@ -20,6 +20,9 @@ async function main() {
             // Get project path from args or environment
             const projectPath = args[1] || process.env.LUMENCORE_PROJECT || process.cwd();
             await startServer(projectPath);
+            break;
+        case 'init':
+            initProject();
             break;
         case 'status':
             showStatus();
