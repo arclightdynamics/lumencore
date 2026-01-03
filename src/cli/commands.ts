@@ -89,9 +89,15 @@ export function reset(force: boolean = false): void {
   }
 }
 
+const LOGO = `
+  ╦  ╦ ╦╔╦╗╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗
+  ║  ║ ║║║║║╣ ║║║║  ║ ║╠╦╝║╣
+  ╩═╝╚═╝╩ ╩╚═╝╝╚╝╚═╝╚═╝╩╚═╚═╝
+`;
+
 export function showHelp(): void {
-  console.log(`
-LumenCore - Persistent memory for AI agents
+  console.log(LOGO);
+  console.log(`  Persistent memory for AI agents
 
 Usage:
   lumencore <command> [options]

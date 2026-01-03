@@ -74,9 +74,14 @@ export function reset(force = false) {
         console.error(`Error during reset: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
+const LOGO = `
+  ╦  ╦ ╦╔╦╗╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗
+  ║  ║ ║║║║║╣ ║║║║  ║ ║╠╦╝║╣
+  ╩═╝╚═╝╩ ╩╚═╝╝╚╝╚═╝╚═╝╩╚═╚═╝
+`;
 export function showHelp() {
-    console.log(`
-LumenCore - Persistent memory for AI agents
+    console.log(LOGO);
+    console.log(`  Persistent memory for AI agents
 
 Usage:
   lumencore <command> [options]
