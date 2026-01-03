@@ -1,0 +1,21 @@
+# Source files (use dist instead)
+src/
+
+# TypeScript config
+tsconfig.json
+
+# Development files
+.vscode/
+.idea/
+.git/
+.gitignore
+
+# Data directory
+data/
+
+# Tests
+*.test.ts
+__tests__/
+
+# Logs
+*.log
