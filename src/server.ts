@@ -253,9 +253,12 @@ export async function startServer(projectPath?: string): Promise<void> {
         case 'lumencore_activate': {
           // Check if project is initialized
           const isInitialized = scanner.isProjectInitialized();
-          const stats = memoryService.getStats();
 
+          // Auto-initialize new projects
           if (!isInitialized) {
+            const scanResult = await scanner.scan();
+            const stats = memoryService.getStats();
+
             return {
               content: [{
                 type: 'text',
@@ -272,18 +275,18 @@ export async function startServer(projectPath?: string): Promise<void> {
      ╚██████╗╚██████╔╝██║  ██║███████╗
       ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 
-🆕 NEW PROJECT DETECTED: ${projectName}
+✓ CONNECTED | Project: ${projectName} | Memories: ${stats.project}
+🆕 Auto-initialized new project
 
-This project hasn't been initialized with LumenCore yet.
-I can scan the project to capture:
-• Directory structure
-• Key configuration files
-• Technology stack
+${scanResult}
 
-Would you like me to initialize? If yes, call init_project.`,
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`,
               }],
             };
           }
+
+          const stats = memoryService.getStats();
 
           const context = searchService.getContext({
             categories: args?.categories as MemoryCategory[] | undefined,
