@@ -17,101 +17,86 @@ AI coding assistants lose all context when a session ends. Every new conversatio
 LumenCore provides a local memory layer that AI agents can read from and write to. When Claude Code connects to LumenCore, it can:
 - **Remember** important decisions, patterns, and concepts
 - **Recall** relevant context using full-text search
-- **Bootstrap** new sessions with stored project knowledge
+- **Activate** automatically at session start to load project knowledge
 
 All data stays local on your machine in a SQLite database.
 
 ## Installation
 
 ```bash
-# Run the setup wizard
-npx github:arclightdynamics/lumencore setup
+npm install -g lumencore
 ```
 
-All commands can be run via npx:
-```bash
-npx github:arclightdynamics/lumencore <command>
-```
-
-## Setup
-
-The setup wizard will ask you two questions:
-
-1. **Memory scope**: Choose between project-only memory (isolated per project) or project + global memory (shared knowledge across all projects).
-
-2. **Data directory**: Where to store the SQLite databases. Defaults to:
-   - Linux: `~/.local/share/lumencore`
-   - macOS: `~/Library/Application Support/lumencore`
-   - Windows: `%LOCALAPPDATA%\lumencore`
-
-## Connecting to Claude Code
-
-After setup, add LumenCore to Claude Code:
+## Quick Start
 
 ```bash
-claude mcp add lumencore -- npx github:arclightdynamics/lumencore serve
+# 1. Add LumenCore to Claude Code (once per machine)
+claude mcp add lumencore -- lumencore serve
+
+# 2. Initialize in your project
+cd /your/project
+lumencore init
+
+# 3. Start Claude - LumenCore activates automatically
+claude
 ```
 
-Or manually add to your Claude Code MCP settings:
+## What `lumencore init` Does
 
-```json
-{
-  "mcpServers": {
-    "lumencore": {
-      "command": "npx",
-      "args": ["github:arclightdynamics/lumencore", "serve"]
-    }
-  }
-}
+The `init` command sets up everything for seamless integration:
+
+1. **Creates/updates CLAUDE.md** - Instructs Claude to activate LumenCore at conversation start
+2. **Configures permissions** - Auto-allows all LumenCore tools (no permission prompts)
+3. **Scans your project** - Captures structure, tech stack, and key files
+
+## CLI Commands
+
+```bash
+lumencore init      # Initialize LumenCore in current project
+lumencore setup     # Run the global setup wizard
+lumencore serve     # Start the MCP server (used by Claude Code)
+lumencore status    # Show configuration and memory stats
+lumencore reset     # Clear all data (use --force to confirm)
+lumencore help      # Show help
 ```
 
-## Usage
+## Tools Available to Claude
 
 Once connected, Claude Code can use these tools:
+
+### `lumencore_activate`
+Called automatically at session start. Loads project context and scans new projects.
 
 ### `remember`
 Store important project knowledge.
 
 ```
-Use remember to store:
+Parameters:
 - category: "decision" | "pattern" | "concept" | "note" | "task"
 - title: Short description
 - content: Full details
 - tags: Optional categorization tags
 - importance: 1-5 (default 3)
-- scope: "project" | "global" (default "project")
 ```
 
 **Example prompt:**
-> "Remember that we decided to use Redux Toolkit for state management because it reduces boilerplate and includes RTK Query for API calls."
+> "Remember that we decided to use Redux Toolkit for state management because it reduces boilerplate."
 
 ### `recall`
-Search stored memories.
+Search stored memories using full-text search.
 
 ```
-Use recall to search:
+Parameters:
 - query: Search terms
-- category: Filter by type
+- category: Filter by type (optional)
 - limit: Max results (default 10)
 ```
 
 **Example prompt:**
-> "Recall any decisions we made about state management."
-
-### `get_context`
-Load project knowledge at session start.
-
-```
-Use get_context to bootstrap:
-- categories: Which types to include
-- max_tokens: Token budget (default 4000)
-```
-
-**Example prompt:**
-> "Get context for this project so you understand our patterns and decisions."
+> "Recall any decisions about state management."
 
 ### `list_memories`
-Browse all stored memories.
+Browse all stored memories for the current project.
 
 ### `forget`
 Delete a memory by ID.
@@ -125,16 +110,6 @@ Delete a memory by ID.
 | `concept` | Domain knowledge, business logic, terminology |
 | `note` | General observations and learnings |
 | `task` | Work items, TODOs, progress tracking |
-
-## CLI Commands
-
-```bash
-lumencore setup     # Run the setup wizard
-lumencore serve     # Start the MCP server
-lumencore status    # Show configuration and memory stats
-lumencore reset     # Clear all data (use --force to confirm)
-lumencore help      # Show help
-```
 
 ## How It Works
 
@@ -150,26 +125,22 @@ lumencore help      # Show help
 ```
 
 1. Claude Code connects to LumenCore via the MCP protocol
-2. The agent calls `get_context` to load relevant project knowledge
-3. During the session, the agent uses `remember` to store new insights
-4. Memories are persisted in SQLite with full-text search indexing
-5. Future sessions can `recall` this knowledge
+2. At session start, Claude calls `lumencore_activate` to load project context
+3. During the session, Claude uses `remember` to store important discoveries
+4. Claude uses `recall` to search for relevant knowledge when needed
+5. Memories persist in SQLite with full-text search indexing
 
 ## Configuration
+
+Run `lumencore setup` to configure:
+
+1. **Memory scope**: Project-only (isolated) or project + global (shared knowledge)
+2. **Data directory**: Where to store SQLite databases
 
 Config is stored at:
 - Linux: `~/.config/lumencore/config.json`
 - macOS: `~/Library/Preferences/lumencore/config.json`
 - Windows: `%APPDATA%\lumencore\config.json`
-
-```json
-{
-  "memoryScope": "project-only",
-  "dataDir": "~/.local/share/lumencore",
-  "defaultImportance": 3,
-  "maxContextTokens": 4000
-}
-```
 
 ## Data Storage
 
@@ -177,7 +148,7 @@ Memories are stored in SQLite databases:
 - **Project memories**: `{dataDir}/projects/{project-hash}/memories.db`
 - **Global memories**: `{dataDir}/global/memories.db`
 
-Each project is identified by a hash of its root path, so memories stay associated with the correct project even if you open it from different locations.
+Each project is identified by a hash of its root path.
 
 ## Privacy
 
