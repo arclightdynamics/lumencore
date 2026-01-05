@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { runSetup } from './cli/setup.js';
-import { showStatus, reset, showHelp, initProject } from './cli/commands.js';
+import { showStatus, reset, showHelp, initProject, showVersion, exportMemories } from './cli/commands.js';
 import { startServer } from './server.js';
 import { getConfigManager } from './config/manager.js';
 async function main() {
@@ -26,6 +26,37 @@ async function main() {
             break;
         case 'status':
             showStatus();
+            break;
+        case 'version':
+        case '--version':
+        case '-v':
+            showVersion();
+            break;
+        case 'export':
+            // Parse output option safely
+            let outputPath;
+            const outputEqualsArg = args.find(a => a.startsWith('--output='));
+            if (outputEqualsArg) {
+                outputPath = outputEqualsArg.split('=')[1];
+            }
+            else if (args.includes('--output')) {
+                const idx = args.indexOf('--output');
+                if (idx >= 0 && args[idx + 1] && !args[idx + 1].startsWith('-')) {
+                    outputPath = args[idx + 1];
+                }
+            }
+            else if (args.includes('-o')) {
+                const idx = args.indexOf('-o');
+                if (idx >= 0 && args[idx + 1] && !args[idx + 1].startsWith('-')) {
+                    outputPath = args[idx + 1];
+                }
+            }
+            const exportOptions = {
+                global: args.includes('--global') || args.includes('-g'),
+                all: args.includes('--all') || args.includes('-a'),
+                output: outputPath,
+            };
+            exportMemories(exportOptions);
             break;
         case 'reset':
             const force = args.includes('--force') || args.includes('-f');

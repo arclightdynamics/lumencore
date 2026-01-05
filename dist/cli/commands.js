@@ -6,6 +6,20 @@ import { findProjectRoot } from '../utils/paths.js';
 import { closeAllDatabases } from '../storage/database.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+// Get package version
+function getPackageVersion() {
+    try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const packagePath = path.join(__dirname, '..', '..', 'package.json');
+        const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+        return packageJson.version || 'unknown';
+    }
+    catch {
+        return 'unknown';
+    }
+}
 export function showStatus() {
     const configManager = getConfigManager();
     console.log('\n--- LumenCore Status ---\n');
@@ -219,6 +233,8 @@ Commands:
   setup     Run the setup wizard
   serve     Start the MCP server (used by Claude Code)
   status    Show current configuration and statistics
+  export    Export memories to JSON file for backup/migration
+  version   Show version number
   reset     Clear all data and configuration (use --force to confirm)
   help      Show this help message
 
@@ -227,10 +243,74 @@ Examples:
   lumencore setup              # Configure LumenCore globally
   lumencore serve              # Start MCP server
   lumencore status             # Check configuration
+  lumencore export             # Export current project memories
+  lumencore export --global    # Export global memories
+  lumencore export --all       # Export all memories
   lumencore reset --force      # Delete all data
 
 Integration with Claude Code:
   claude mcp add lumencore -- lumencore serve
 `);
+}
+export function showVersion() {
+    const version = getPackageVersion();
+    console.log(`lumencore v${version}`);
+}
+export function exportMemories(options) {
+    const configManager = getConfigManager();
+    if (!configManager.isConfigured()) {
+        console.log('LumenCore is not configured. Run "lumencore setup" first.\n');
+        return;
+    }
+    try {
+        const projectPath = findProjectRoot();
+        const memoryService = new MemoryService(projectPath);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            version: getPackageVersion(),
+        };
+        if (options.all) {
+            // Export both project and global memories
+            const projectMemories = memoryService.list({ scope: 'project' });
+            const globalMemories = memoryService.list({ scope: 'global' });
+            exportData.project = {
+                path: projectPath,
+                memories: projectMemories,
+            };
+            exportData.global = {
+                memories: globalMemories,
+            };
+            console.log(`Found ${projectMemories.length} project memories`);
+            console.log(`Found ${globalMemories.length} global memories`);
+        }
+        else if (options.global) {
+            // Export only global memories
+            const globalMemories = memoryService.list({ scope: 'global' });
+            exportData.global = {
+                memories: globalMemories,
+            };
+            console.log(`Found ${globalMemories.length} global memories`);
+        }
+        else {
+            // Export only current project memories (default)
+            const projectMemories = memoryService.list({ scope: 'project' });
+            exportData.project = {
+                path: projectPath,
+                memories: projectMemories,
+            };
+            console.log(`Found ${projectMemories.length} project memories`);
+        }
+        // Determine output filename
+        const scope = options.all ? 'all' : options.global ? 'global' : 'project';
+        const defaultFilename = `lumencore-export-${scope}-${timestamp}.json`;
+        const outputPath = options.output || path.join(process.cwd(), defaultFilename);
+        // Write export file
+        fs.writeFileSync(outputPath, JSON.stringify(exportData, null, 2), 'utf-8');
+        console.log(`\n✓ Exported to: ${outputPath}\n`);
+    }
+    catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 }
 //# sourceMappingURL=commands.js.map
