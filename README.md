@@ -56,8 +56,19 @@ lumencore init      # Initialize LumenCore in current project
 lumencore setup     # Run the global setup wizard
 lumencore serve     # Start the MCP server (used by Claude Code)
 lumencore status    # Show configuration and memory stats
+lumencore export    # Export memories to JSON for backup/migration
+lumencore version   # Show installed version
 lumencore reset     # Clear all data (use --force to confirm)
 lumencore help      # Show help
+```
+
+### Export Options
+
+```bash
+lumencore export             # Export current project memories
+lumencore export --global    # Export global memories only
+lumencore export --all       # Export all memories
+lumencore export -o backup.json  # Custom output file
 ```
 
 ## Tools Available to Claude
