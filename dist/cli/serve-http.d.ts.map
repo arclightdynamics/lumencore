@@ -1,0 +1,1 @@
+{"version":3,"file":"serve-http.d.ts","sourceRoot":"","sources":["../../src/cli/serve-http.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,cAAc;IAC7B,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,KAAK,CAAC,EAAE,MAAM,CAAC;CAChB;AAED;;;;GAIG;AACH,wBAAsB,YAAY,CAAC,KAAK,GAAE,cAAmB,GAAG,OAAO,CAAC,IAAI,CAAC,CAgC5E"}

@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en" data-lc-theme="dark" data-lc-accent="cyan">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LumenCore · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=JetBrains+Mono:wght@300..700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/lumencore.css" />
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: var(--lc-bg); font-family: var(--lc-sans); }
+  #root { height: 100vh; }
+  .lc-loading { height: 100vh; display: flex; align-items: center; justify-content: center;
+    color: var(--lc-fg-3); font-family: var(--lc-mono); font-size: 12px; letter-spacing: 0.08em; }
+  .ed-area { width: 100%; box-sizing: border-box; background: transparent; border: 0; outline: none;
+    color: var(--lc-fg-2); font-family: var(--lc-mono); font-size: 12px; line-height: 1.6; resize: vertical; min-height: 380px; padding: 16px 20px; }
+</style>
+</head>
+<body>
+<div id="root"><div class="lc-loading">connecting to 127.0.0.1:4317 …</div></div>
+
+<script>
+"use strict";
+
+const ICONS = {
+  logo:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="6.5" stroke-opacity="0.5"/><circle cx="8" cy="8" r="4"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>',
+  search:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+  home:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7L8 2L14 7V13H10V9H6V13H2V7Z"/></svg>',
+  folder:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4C2 3.4 2.4 3 3 3H6L7.5 4.5H13C13.6 4.5 14 4.9 14 5.5V12C14 12.6 13.6 13 13 13H3C2.4 13 2 12.6 2 12V4Z"/></svg>',
+  globe:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M2 8H14"/><path d="M8 2C10 4 11 6 11 8C11 10 10 12 8 14C6 12 5 10 5 8C5 6 6 4 8 2Z"/></svg>',
+  clock:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 5V8L10 9.5" stroke-linecap="round"/></svg>',
+  graph:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><path d="M5 5L7 11M9 11L11 5M6 4H10"/></svg>',
+  bolt:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M9 2L3 9H7L6 14L13 7H9L9 2Z"/></svg>',
+  settings:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2"/><path d="M8 1V3M8 13V15M3.5 3.5L4.9 4.9M11.1 11.1L12.5 12.5M1 8H3M13 8H15M3.5 12.5L4.9 11.1M11.1 4.9L12.5 3.5"/></svg>',
+  moon:'<svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 2C7 4 7 7 9 9C11 11 14 11 14 11C13 13 11 14 9 14C5.7 14 3 11.3 3 8C3 5.5 4.5 3.3 6.5 2.3C6.3 2.2 6.2 2 6 2Z"/></svg>',
+  sun:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1V2.5M8 13.5V15M3 3L4 4M12 12L13 13M1 8H2.5M13.5 8H15M3 13L4 12M12 4L13 3" stroke-linecap="round"/></svg>',
+  plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 3V13M3 8H13"/></svg>',
+  edit:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2L14 5L6 13L2 14L3 10L11 2Z"/></svg>',
+  trash:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4H13M6 4V3C6 2.4 6.4 2 7 2H9C9.6 2 10 2.4 10 3V4M5 4V13C5 13.6 5.4 14 6 14H10C10.6 14 11 13.6 11 13V4"/></svg>',
+  check:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8L7 12L13 4"/></svg>',
+  dot:'<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="3"/></svg>',
+};
+
+function ago(mins) {
+  if (mins == null) return "—";
+  if (mins < 1) return "now";
+  if (mins < 60) return mins + "m";
+  if (mins < 1440) return Math.floor(mins / 60) + "h";
+  return Math.floor(mins / 1440) + "d";
+}
+function fmtTs(iso) { try { return iso ? new Date(iso).toLocaleString() : "—"; } catch (e) { return iso || "—"; } }
+
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "html") e.innerHTML = v;
+    else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
+    else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === "value") e.value = v;
+    else if (k === "readonly") e.readOnly = !!v;
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return e;
+}
+function icon(name, cls) { return el("span", { class: cls || "ico", html: ICONS[name] || "" }); }
+function kbd(seq) { return el("span", { class: "lc-kbd" }, seq.split(/\s+/).filter(Boolean).map((k) => el("kbd", null, k))); }
+function cat(kind) { return el("span", { class: "lc-cat " + kind }, kind); }
+function importance(n) {
+  const w = el("span", { class: "lc-imp" + (n >= 4 ? " high" : "") });
+  for (let i = 1; i <= 5; i++) w.append(el("span", { class: i <= n ? "on" : "" }));
+  return w;
+}
+function spark(count) {
+  const base = [3,5,2,8,4,9,7,12,6,9,4,11,8,14].map((x) => x + (count % 7) * 0.4);
+  const w = 80, h = 18, max = Math.max.apply(null, base.concat([1])), step = w / (base.length - 1);
+  const pts = base.map((v, i) => (i*step).toFixed(1)+","+(h-(v/max)*h).toFixed(1)).join(" ");
+  return el("span", { html: '<svg width="'+w+'" height="'+h+'" class="lc-spark"><polyline points="'+pts+'"/></svg>' });
+}
+
+// ---- navigation / fetch ----
+function go(pathname) { history.pushState({}, "", pathname); route(); }
+async function fetchJson(url, opts) {
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+  return d;
+}
+function toast(msg) {
+  let zone = document.querySelector(".lc-toast-zone.live");
+  if (!zone) { zone = el("div", { class: "lc-toast-zone live" }); document.body.append(zone); }
+  const t = el("div", { class: "lc-toast" }, el("span", { class: "dot" }), el("span", null, msg));
+  zone.append(t);
+  setTimeout(() => t.remove(), 2600);
+}
+
+// ---- shared components ----
+function memoryCard(m, fresh) {
+  return el("div", { class: "lc-card" + (fresh ? " fresh" : ""), onclick: () => go("/memory/" + m.id) },
+    el("div", { class: "row1" }, el("div", { class: "title" }, m.title)),
+    el("div", { class: "body" }, m.body),
+    el("div", { class: "row2" }, cat(m.category), el("span", { class: "proj" }, m.project),
+      importance(m.importance), el("span", null, "· " + ago(m.ageMins) + " ago")));
+}
+function emptyState(title, body, cmd) {
+  return el("div", { class: "lc-empty" }, el("div", { class: "icon", html: ICONS.plus }),
+    el("h4", null, title), el("p", null, body),
+    cmd ? el("div", { class: "cmd" }, el("span", { class: "prompt" }, "$"), " " + cmd) : null);
+}
+function panel(title, meta, body, tight) {
+  return el("div", { class: "lc-panel" },
+    el("div", { class: "lc-panel-h" }, title, el("span", { class: "meta" }, meta)),
+    el("div", { class: "lc-panel-body" + (tight ? " tight" : "") }, body));
+}
+function sideLink(ic, label, opts) {
+  opts = opts || {};
+  const soon = !!opts.soon;
+  const style = Object.assign({}, opts.indent ? { paddingLeft: "22px" } : {}, soon ? { opacity: "0.4", cursor: "default" } : {});
+  return el("div", { class: "lc-side-link" + (opts.active ? " active" : ""), style, title: soon ? "coming soon" : null, onclick: soon ? null : opts.onclick },
+    icon(ic), el("span", null, label),
+    opts.count != null ? el("span", { class: "count" }, String(opts.count)) : null,
+    soon ? el("span", { class: "kbd-hint", style: { opacity: "1" } }, "soon") : (opts.kbd ? el("span", { class: "kbd-hint" }, opts.kbd) : null));
+}
+
+function topBar(stats) {
+  const themeLabel = document.documentElement.dataset.lcTheme === "light" ? "light" : "dark";
+  return el("header", { class: "lc-topbar" },
+    el("div", { class: "lc-brand", style: { cursor: "pointer" }, onclick: () => go("/") }, icon("logo", "glyph"), el("span", { html: 'LumenCore <em>1.0</em>' })),
+    el("div", { class: "lc-topbar-search", style: { cursor: "pointer" }, onclick: openCmdK }, icon("search"), el("span", null, "Search memories, projects, tags…"), kbd("⌘ K")),
+    el("div", { class: "lc-spacer" }),
+    el("div", { class: "lc-status" },
+      el("span", { class: "live-dot" }, "WATCHING · LOOPBACK"),
+      el("span", { class: "lc-count", html: "total: <strong>" + stats.memories.toLocaleString() + "</strong> · scope: <strong>" + stats.projects + " projects</strong>" }),
+      el("button", { class: "lc-theme-btn", title: "Toggle theme", onclick: toggleTheme },
+        el("span", { style: { width: "12px", height: "12px", display: "inline-flex" }, html: themeLabel === "light" ? ICONS.sun : ICONS.moon }),
+        el("span", null, themeLabel))));
+}
+
+function sidebar(shell, active, activeProjectId) {
+  const aside = el("aside", { class: "lc-sidebar" },
+    el("div", { class: "lc-side-section" }, "Workspace"),
+    sideLink("home", "Dashboard", { active: active === "dashboard", kbd: "g d", onclick: () => go("/") }),
+    sideLink("globe", "Global", { count: shell.stats.globalCount, active: active === "global", onclick: () => go("/global") }),
+    sideLink("clock", "Timeline", { active: active === "timeline", onclick: () => go("/timeline") }),
+    sideLink("graph", "Graph", { active: active === "graph", onclick: () => go("/graph") }),
+    sideLink("bolt", "Live · agents", { active: active === "live", onclick: () => go("/live") }),
+    sideLink("search", "Search", { active: active === "search", onclick: () => go("/search"), kbd: "/" }),
+    el("div", { class: "lc-side-section" }, "Projects · " + shell.projects.length));
+  const shownProjects = projectsExpanded ? shell.projects : shell.projects.slice(0, 6);
+  shownProjects.forEach((p) =>
+    aside.append(sideLink("folder", p.name, { count: p.count, indent: true, active: p.id === activeProjectId, onclick: () => go("/projects/" + p.id) })));
+  if (shell.projects.length > 6)
+    aside.append(el("div", { class: "lc-side-link", style: { paddingLeft: "22px", color: "var(--lc-fg-dim)", cursor: "pointer" },
+      onclick: () => { projectsExpanded = !projectsExpanded; aside.replaceWith(sidebar(shell, active, activeProjectId)); } },
+      el("span", null, projectsExpanded ? "show less" : "show " + (shell.projects.length - 6) + " more…")));
+  aside.append(el("div", { class: "lc-side-section" }, "System"), sideLink("settings", "Settings", { active: active === "settings", onclick: () => go("/settings") }));
+  return aside;
+}
+
+// ---- DASHBOARD ----
+function statStrip(s) {
+  const cell = (k, vNode, sub) => el("div", { class: "lc-stat" }, el("span", { class: "k" }, k), vNode, el("span", { class: "sub" }, sub));
+  const v = (t) => el("span", { class: "v" }, t);
+  const vA = (mins) => el("span", { class: "v", html: '<span class="accent">' + ago(mins) + "</span> ago" });
+  return el("div", { class: "lc-stats" },
+    cell("Memories", v(s.memories.toLocaleString()), "+ " + s.writtenLastHour + " in last hour"),
+    cell("Projects", v(String(s.projects)), s.globalCount > 0 ? "+ 1 global scope" : "local only"),
+    cell("Last write", s.lastWrite ? vA(s.lastWriteMins) : v("—"), s.lastWrite ? s.lastWrite.id + " · " + s.lastWrite.project : "no writes yet"),
+    cell("Last recall", s.lastRecall ? vA(s.lastRecallMins) : v("—"), s.lastRecall ? "via " + s.lastRecall.project : "no recalls yet"));
+}
+function projectsPanel(projects) {
+  const head = el("div", { style: { display: "grid", gridTemplateColumns: "1fr 80px 80px 100px 100px", gap: "16px", padding: "10px 14px", fontFamily: "var(--lc-mono)", fontSize: "10px", color: "var(--lc-fg-dim)", letterSpacing: "0.10em", textTransform: "uppercase", borderBottom: "1px solid var(--lc-border-soft)" } },
+    el("span", null, "Project · path"), el("span", { style: { textAlign: "right" } }, "Memories"),
+    el("span", { style: { textAlign: "right" } }, "Recalled"), el("span", { style: { textAlign: "right" } }, "Last write"), el("span", null, "14d activity"));
+  const rows = el("div", { class: "lc-projects" });
+  if (!projects.length) rows.append(emptyState("No projects yet", "Run lumencore install in a repo, then let an agent remember something.", "lumencore install"));
+  projects.forEach((p) => rows.append(el("div", { class: "lc-proj-row", onclick: () => go("/projects/" + p.id) },
+    el("div", { class: "name" }, p.name, el("span", { class: "path" }, p.path)),
+    el("div", { class: "num" }, String(p.count)), el("div", { class: "num dim" }, String(p.recalls)),
+    el("div", { class: "ts" }, ago(p.lastWriteMins) + " ago"), spark(p.count))));
+  return el("div", { class: "lc-panel" }, el("div", { class: "lc-panel-h" }, "Projects", el("span", { class: "meta" }, "sorted by recent activity")),
+    el("div", { class: "lc-panel-body tight" }, head, rows));
+}
+function dashboardMain(data) {
+  const now = new Date();
+  const main = el("main", { class: "lc-main" },
+    el("div", { class: "lc-main-head" },
+      el("div", null, el("div", { class: "lc-crumbs" }, el("span", { class: "here" }, "Dashboard")), el("h1", null, "Memory · across all projects")),
+      el("div", { class: "subtitle" }, now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }) + " · " + now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) + " local")),
+    statStrip(data.stats));
+  const written = data.recentWritten.length ? el("div", null, data.recentWritten.map((m, i) => memoryCard(m, i === 0)))
+    : emptyState("Nothing written yet", "When an agent calls remember, new memories show up here.", "remember(...)");
+  const recalled = data.recentRecalled.length ? el("div", null, data.recentRecalled.map((m) => memoryCard(m, false)))
+    : emptyState("Nothing recalled yet", "When an agent calls recall, the memories it used appear here.", "recall(...)");
+  main.append(el("div", { class: "lc-cols" },
+    panel("Recently written", data.recentWritten.length + " most recent · all projects", written),
+    panel("Recently recalled", "what your agents are actually using", recalled)));
+  main.append(projectsPanel(data.projects));
+  return main;
+}
+
+// ---- PROJECT VIEW ----
+function projectMain(data) {
+  const cats = ["all", "decision", "pattern", "concept", "note", "task"];
+  const sorts = ["relevance", "recency", "importance", "alphabetical"];
+  const st = { cat: "all", imp: 0, sort: "recency", q: "", tags: [] };
+  const main = el("main", { class: "lc-main" });
+
+  function filtered() {
+    let list = data.memories.filter((m) => {
+      if (st.cat !== "all" && m.category !== st.cat) return false;
+      if (st.imp && m.importance < st.imp) return false;
+      if (st.tags.length && !st.tags.every((t) => m.tags.includes(t))) return false;
+      if (st.q) { const q = st.q.toLowerCase(); if (!(m.title.toLowerCase().includes(q) || m.body.toLowerCase().includes(q))) return false; }
+      return true;
+    });
+    if (st.sort === "recency") list = list.slice().sort((a, b) => a.ageMins - b.ageMins);
+    else if (st.sort === "importance") list = list.slice().sort((a, b) => b.importance - a.importance);
+    else if (st.sort === "alphabetical") list = list.slice().sort((a, b) => a.title.localeCompare(b.title));
+    return list;
+  }
+
+  function rerender() {
+    main.innerHTML = "";
+    const p = data.project;
+    main.append(el("div", { class: "lc-crumbs" },
+      el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"),
+      el("span", { class: "here" }, p.name)));
+    main.append(el("div", { class: "lc-main-head" },
+      el("div", null, el("h1", null, p.name), el("div", { class: "lc-mono-sm", style: { marginTop: "6px" } }, p.path)),
+      el("div", { class: "lc-row-flex", style: { fontFamily: "var(--lc-mono)", fontSize: "11px", color: "var(--lc-fg-3)" } },
+        el("span", { html: "<strong style='color:var(--lc-fg)'>" + p.count + "</strong> memories" }),
+        el("span", null, "· last: " + ago(p.lastWriteMins) + " ago"))));
+
+    const seg = (vals, cur, set, fmt) => el("div", { class: "seg" }, vals.map((v) =>
+      el("button", { class: v === cur ? "on" : "", onclick: () => { set(v); rerender(); } }, fmt ? fmt(v) : v)));
+    const filter = el("div", { class: "lc-filter" },
+      el("div", { class: "group" }, el("span", { class: "lbl" }, "Category"), seg(cats, st.cat, (v) => st.cat = v)),
+      el("div", { class: "group" }, el("span", { class: "lbl" }, "Importance"),
+        seg([0,1,2,3,4,5], st.imp, (v) => st.imp = v, (n) => n === 0 ? "any" : "●".repeat(n))),
+      el("div", { class: "group" }, el("span", { class: "lbl" }, "Sort"), seg(sorts, st.sort, (v) => st.sort = v)),
+      el("input", { class: "lc-search-inline", placeholder: "Search title or content", value: st.q,
+        oninput: (e) => { st.q = e.target.value; renderList(); } }));
+    main.append(filter);
+
+    const tagRow = el("div", { class: "lc-row-flex", style: { padding: "0 4px 14px", gap: "6px" } }, el("span", { class: "lc-mono-sm" }, "Tags:"));
+    data.tags.slice(0, 12).forEach((t) => {
+      const on = st.tags.includes(t);
+      tagRow.append(el("span", { class: "lc-chip" + (on ? " active" : ""), onclick: () => { st.tags = on ? st.tags.filter((x) => x !== t) : st.tags.concat([t]); rerender(); } },
+        t, on ? el("span", { class: "x" }, "×") : null));
+    });
+    const counter = el("span", { class: "lc-mono-sm", style: { marginLeft: "auto" } });
+    tagRow.append(counter);
+    main.append(tagRow);
+
+    const listWrap = el("div", { class: "lc-result-list" });
+    main.append(listWrap);
+
+    function renderList() {
+      const list = filtered();
+      counter.textContent = list.length + " results";
+      listWrap.innerHTML = "";
+      if (!list.length) { listWrap.append(emptyState("No matching memories", "Adjust the filters or clear the search.", "")); return; }
+      list.forEach((m) => listWrap.append(el("div", { class: "lc-result", style: m.superseded ? { opacity: 0.55 } : null, onclick: () => go("/memory/" + m.id) },
+        el("div", { class: "check" }),
+        el("div", { class: "content" }, el("div", { class: "title" }, m.title), el("div", { class: "body" }, m.body)),
+        el("div", null, cat(m.category)), el("div", null, importance(m.importance)),
+        el("div", { class: "age" }, ago(m.ageMins) + " ago"), el("div", { class: "id" }, m.id))));
+    }
+    renderList();
+  }
+  rerender();
+  return main;
+}
+
+// ---- SEARCH ----
+function searchMain(initialQ) {
+  const main = el("main", { class: "lc-main" });
+  main.append(el("div", { class: "lc-crumbs" }, el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"), el("span", { class: "here" }, "Search")));
+  main.append(el("div", { class: "lc-main-head" }, el("div", null, el("h1", null, "Search")), el("div", { class: "subtitle" }, "across all projects · FTS")));
+  const input = el("input", { class: "lc-search-inline", placeholder: "Search title, content, tags…", value: initialQ || "", style: { width: "100%", fontSize: "14px", padding: "8px 12px" } });
+  main.append(el("div", { class: "lc-filter" }, input));
+  const counter = el("div", { class: "lc-mono-sm", style: { padding: "0 4px 10px" } });
+  main.append(counter);
+  const listWrap = el("div", { class: "lc-result-list" });
+  main.append(listWrap);
+
+  let t = null;
+  function render(d) {
+    counter.textContent = d.count ? d.count + " results for “" + d.query + "”" : "";
+    listWrap.innerHTML = "";
+    if (!d.query) { listWrap.append(emptyState("Search your memory", "Type to search every project and the global scope.", "")); return; }
+    if (!d.results.length) { listWrap.append(emptyState("No matches", "Nothing matched “" + d.query + "”.", "")); return; }
+    d.results.forEach((m) => listWrap.append(el("div", { class: "lc-result", onclick: () => go("/memory/" + m.id) },
+      el("div", { class: "check" }),
+      el("div", { class: "content" }, el("div", { class: "title" }, m.title),
+        el("div", { class: "body" }, el("span", { class: "lc-chip", style: { marginRight: "6px" } }, m.project), m.body)),
+      el("div", null, cat(m.category)), el("div", null, importance(m.importance)),
+      el("div", { class: "age" }, ago(m.ageMins) + " ago"), el("div", { class: "id" }, ""))));
+  }
+  async function run() {
+    const q = input.value.trim();
+    try { history.replaceState({}, "", "/search" + (q ? "?q=" + encodeURIComponent(q) : "")); } catch (e) {}
+    if (!q) return render({ query: "", results: [], count: 0 });
+    try { render(await fetchJson("/api/search?q=" + encodeURIComponent(q))); } catch (e) {}
+  }
+  input.addEventListener("input", () => { clearTimeout(t); t = setTimeout(run, 250); });
+  setTimeout(() => { input.focus(); run(); }, 0);
+  return main;
+}
+
+// ---- MEMORY DETAIL / EDITOR ----
+function mdToHtml(src) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+  let html = "", inList = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (/^\s*#{1,6}\s+/.test(line)) { if (inList) { html += "</ul>"; inList = false; } const lvl = Math.min(line.match(/^#+/)[0].length, 3); html += "<h" + lvl + ">" + inline(line.replace(/^#+\s+/, "")) + "</h" + lvl + ">"; continue; }
+    if (/^\s*[-*]\s+/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(line.replace(/^\s*[-*]\s+/, "")) + "</li>"; continue; }
+    if (inList) { html += "</ul>"; inList = false; }
+    if (/^\s*>\s?/.test(line)) { html += "<blockquote>" + inline(line.replace(/^\s*>\s?/, "")) + "</blockquote>"; continue; }
+    if (line.trim() === "") continue;
+    html += "<p>" + inline(line) + "</p>";
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
+
+function memoryMain(m) {
+  const draft = { title: m.title, content: m.body, tags: m.tags.slice(), importance: m.importance };
+  let mode = "source";
+  const main = el("main", { class: "lc-main" });
+
+  const crumbProject = m.projectId ? el("a", { onclick: () => go("/projects/" + m.projectId) }, m.projectName) : el("span", null, m.projectName);
+  main.append(el("div", { class: "lc-crumbs" }, el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"), crumbProject, el("span", { class: "sep" }, "/"), el("span", { class: "here" }, m.title)));
+
+  // metadata sidebar
+  function metaRow(k, v, mono) { return el("div", { class: "lc-meta-row" }, el("span", { class: "k" }, k), el("span", { class: "v" + (mono ? " id-mono" : "") }, v)); }
+  const meta = el("div", { class: "lc-meta" },
+    el("div", { class: "lc-meta-section" }, el("h4", null, "Identity"),
+      metaRow("id", m.id, true), metaRow("scope", m.scope), metaRow("project", m.projectName)),
+    el("div", { class: "lc-meta-section" }, el("h4", null, "Provenance"),
+      metaRow("source", m.source || "—"), metaRow("confidence", m.confidence == null ? "—" : Number(m.confidence).toFixed(2)),
+      metaRow("recalled", m.accessCount + "×"), metaRow("created", fmtTs(m.createdAt)), metaRow("updated", fmtTs(m.updatedAt)), metaRow("last used", fmtTs(m.lastAccessed))),
+    el("div", { class: "lc-meta-section" }, el("h4", null, "Lifecycle"),
+      metaRow("expires", m.expiresAt ? fmtTs(m.expiresAt) : "never")));
+  const lifecycle = meta.lastChild;
+  if (m.supersededById) lifecycle.append(el("div", { class: "lc-superseded" }, el("div", { class: "lbl" }, "Superseded by"),
+    el("a", { onclick: () => go("/memory/" + m.supersededById) }, m.supersededById)));
+  if (m.supersedesId) lifecycle.append(el("div", { class: "lc-superseded" }, el("div", { class: "lbl" }, "Supersedes"),
+    el("a", { onclick: () => go("/memory/" + m.supersedesId) }, m.supersedesId)));
+
+  // detail panel
+  const detail = el("div", { class: "lc-detail" });
+  const titleInput = el("input", { class: "ed-title", value: draft.title, readonly: !m.editable, oninput: (e) => draft.title = e.target.value });
+
+  const impWrap = el("span");
+  function renderImp() {
+    impWrap.innerHTML = "";
+    const w = el("span", { class: "lc-imp" + (draft.importance >= 4 ? " high" : "") });
+    for (let i = 1; i <= 5; i++) w.append(el("span", { class: i <= draft.importance ? "on" : "", style: m.editable ? { cursor: "pointer", width: "9px", height: "9px" } : null,
+      onclick: m.editable ? () => { draft.importance = i; renderImp(); } : null }));
+    impWrap.append(w);
+  }
+  renderImp();
+
+  const tagsWrap = el("div", { class: "lc-row-flex" });
+  function renderTags() {
+    tagsWrap.innerHTML = "";
+    draft.tags.forEach((t) => tagsWrap.append(el("span", { class: "lc-chip" }, t, m.editable ? el("span", { class: "x", style: { cursor: "pointer" }, onclick: () => { draft.tags = draft.tags.filter((x) => x !== t); renderTags(); } }, "×") : null)));
+    if (m.editable) {
+      const input = el("input", { class: "lc-search-inline", placeholder: "+ add tag", style: { maxWidth: "120px", minWidth: "100px" },
+        onkeydown: (e) => { if (e.key === "Enter" && e.target.value.trim()) { const v = e.target.value.trim(); if (!draft.tags.includes(v)) draft.tags.push(v); e.target.value = ""; renderTags(); } } });
+      tagsWrap.append(input);
+    }
+  }
+  renderTags();
+
+  detail.append(el("div", { class: "lc-detail-h" }, titleInput,
+    el("div", { class: "row" }, cat(m.category), impWrap, tagsWrap)));
+
+  const contentArea = el("div");
+  function renderContent() {
+    contentArea.innerHTML = "";
+    if (mode === "source") contentArea.append(el("textarea", { class: "ed-area", readonly: !m.editable, oninput: (e) => draft.content = e.target.value }, draft.content));
+    else contentArea.append(el("div", { class: "lc-preview-pane", html: mdToHtml(draft.content) }));
+  }
+  const segBtn = (label, val) => el("button", { class: mode === val ? "on" : "", onclick: () => { mode = val; segWrap.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.textContent === (mode === "source" ? "Source" : "Preview"))); renderContent(); } }, label);
+  const segWrap = el("div", { class: "seg" }, segBtn("Source", "source"), segBtn("Preview", "preview"));
+  detail.append(el("div", { class: "lc-detail-toolbar" }, el("button", null, icon("edit"), el("span", null, m.editable ? "Editing" : "Read-only")), el("div", { class: "lc-spacer" }), segWrap));
+  detail.append(contentArea);
+  renderContent();
+
+  if (m.editable) {
+    detail.append(el("div", { class: "lc-detail-foot" },
+      el("div", { class: "left" },
+        el("button", { class: "lc-btn danger", onclick: onDelete }, icon("trash"), el("span", null, "Delete")),
+        el("button", { class: "lc-btn ghost", onclick: onSupersede }, el("span", null, "Supersede…"))),
+      el("button", { class: "lc-btn primary", onclick: onSave }, icon("check"), el("span", null, "Save"))));
+  } else {
+    detail.append(el("div", { class: "lc-detail-foot" }, el("div", { class: "lc-mono-sm" }, "Read-only — " + (m.scope === "global" ? "global memory" : "edit from the owning project"))));
+  }
+
+  async function onSave() {
+    try {
+      await fetchJson("/api/memory", { method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: m.id, title: draft.title, content: draft.content, tags: draft.tags, importance: draft.importance }) });
+      toast("Saved · " + m.id);
+      route();
+    } catch (e) { toast("Save failed: " + e.message); }
+  }
+  async function onDelete() {
+    if (!confirm("Delete this memory? This cannot be undone.")) return;
+    try {
+      await fetchJson("/api/memory?id=" + encodeURIComponent(m.id), { method: "DELETE" });
+      toast("Deleted · " + m.id);
+      go(m.projectId ? "/projects/" + m.projectId : "/");
+    } catch (e) { toast("Delete failed: " + e.message); }
+  }
+  async function onSupersede() {
+    const newId = prompt("ID of the memory that supersedes this one:");
+    if (!newId) return;
+    try {
+      await fetchJson("/api/supersede", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ oldId: m.id, newId: newId.trim() }) });
+      toast("Superseded by " + newId.trim());
+      route();
+    } catch (e) { toast("Supersede failed: " + e.message); }
+  }
+
+  main.append(el("div", { class: "lc-detail-layout" }, detail, meta));
+  return main;
+}
+
+// ---- GRAPH (live force-directed memory graph) ----
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function swatch(color, label) {
+  return el("span", { class: "lc-mono-sm", style: { display: "inline-flex", alignItems: "center", gap: "4px", marginRight: "8px" } },
+    el("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: color, display: "inline-block" } }), label);
+}
+
+function graphMain(initial) {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fb) => (cs.getPropertyValue(name).trim() || fb);
+  const cat = { decision: v("--cat-decision", "#6aa"), pattern: v("--cat-pattern", "#a6c"), concept: v("--cat-concept", "#6cc"), note: v("--cat-note", "#999"), task: v("--cat-task", "#ca6") };
+  const accent = v("--lc-accent", "#5cc"), fg3 = v("--lc-fg-3", "#889"), fgDim = v("--lc-fg-dim", "#667"), borderSoft = v("--lc-border-soft", "rgba(200,200,200,.25)");
+
+  let project = "";
+  const main = el("main", { class: "lc-main" });
+  main.append(el("div", { class: "lc-main-head" },
+    el("div", null, el("div", { class: "lc-crumbs" }, el("span", { class: "here" }, "Graph")), el("h1", null, "Memory graph")),
+    el("div", { class: "subtitle" }, "")));
+  const subtitle = main.querySelector(".subtitle");
+
+  const projSelect = el("select", { class: "lc-search-inline", style: { maxWidth: "200px" }, onchange: (e) => { project = e.target.value; reload(); } });
+  projSelect.append(el("option", { value: "" }, "All projects"));
+  (initial.projects || []).forEach((p) => projSelect.append(el("option", { value: p }, p)));
+  const resetBtn = el("button", { class: "lc-btn ghost", onclick: () => { cam.scale = 1; cam.x = 0; cam.y = 0; } }, "Reset view");
+  main.append(el("div", { class: "lc-filter" },
+    el("div", { class: "group" }, el("span", { class: "lbl" }, "Project"), projSelect),
+    el("div", { class: "group" }, swatch(cat.decision, "decision"), swatch(cat.pattern, "pattern"), swatch(cat.concept, "concept"), swatch(cat.note, "note"), swatch(cat.task, "task"), swatch(accent, "recall")),
+    el("div", { class: "group" }, resetBtn),
+    el("div", { class: "group", style: { marginLeft: "auto", borderRight: "0" } }, el("span", { class: "live-dot" }, "LIVE · polling 4s · scroll = zoom · drag bg = pan"))));
+
+  const wrap = el("div", { class: "lc-graph", style: { height: "74vh", aspectRatio: "auto" } });
+  const canvas = el("canvas", { style: { width: "100%", height: "100%", display: "block", cursor: "grab" } });
+  const tip = el("div", { style: { position: "absolute", pointerEvents: "none", zIndex: "5", display: "none", background: "var(--lc-bg-2)", border: "1px solid var(--lc-border)", borderRadius: "6px", padding: "8px 10px", font: "12px var(--lc-sans)", color: "var(--lc-fg)", maxWidth: "260px", boxShadow: "0 10px 30px rgba(0,0,0,.5)" } });
+  wrap.append(canvas, tip);
+  main.append(wrap);
+
+  const ctx = canvas.getContext("2d");
+  const nodes = new Map();
+  const anchors = new Map();           // project -> world anchor (gravity well)
+  const cam = { scale: 1, x: 0, y: 0 }; // screen = world * scale + (x,y)
+  let edges = [], W = 0, H = 0, hover = null, dragNode = null, raf = null, timer = null;
+  let panning = false, panStart = null, downAt = null, moved = false;
+
+  const radius = (d) => 4 + d.importance * 1.6 + Math.min(d.accessCount, 10) * 0.5;
+  const toWorld = (sx, sy) => [(sx - cam.x) / cam.scale, (sy - cam.y) / cam.scale];
+
+  function computeAnchors() {
+    const names = Array.from(new Set(Array.from(nodes.values()).map((n) => n.data.project)));
+    for (const k of Array.from(anchors.keys())) if (!names.includes(k)) anchors.delete(k);
+    const cx = W / 2, cy = H / 2;
+    if (names.length <= 1) { anchors.clear(); if (names[0]) anchors.set(names[0], { x: cx, y: cy }); return; }
+    const R = Math.min(W, H) * 0.34;
+    names.forEach((nm, i) => { const a = (i / names.length) * Math.PI * 2 - Math.PI / 2; anchors.set(nm, { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R }); });
+  }
+  const anchorOf = (n) => anchors.get(n.data.project) || { x: W / 2, y: H / 2 };
+
+  function ingest(p) {
+    edges = p.edges;
+    const seen = new Set();
+    for (const d of p.nodes) {
+      seen.add(d.id);
+      let n = nodes.get(d.id);
+      if (!n) {
+        const an = anchors.get(d.project) || { x: W / 2, y: H / 2 };
+        const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 60;
+        n = { id: d.id, x: an.x + Math.cos(a) * r, y: an.y + Math.sin(a) * r, vx: 0, vy: 0, born: performance.now(), pulse: 0, prevAccess: d.accessCount };
+        nodes.set(d.id, n);
+      } else if (d.accessCount > n.prevAccess) { n.pulse = 1; n.prevAccess = d.accessCount; }
+      n.data = d; n.r = radius(d);
+    }
+    for (const id of Array.from(nodes.keys())) if (!seen.has(id)) nodes.delete(id);
+    computeAnchors();
+    subtitle.textContent = nodes.size + " memories · " + edges.length + " links · " + anchors.size + " projects";
+  }
+
+  function resize() {
+    const DPR = window.devicePixelRatio || 1;
+    W = wrap.clientWidth; H = wrap.clientHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    computeAnchors();
+  }
+
+  function step() {
+    const arr = Array.from(nodes.values());
+    for (let i = 0; i < arr.length; i++) {
+      const a = arr[i];
+      for (let j = i + 1; j < arr.length; j++) {
+        const b = arr[j];
+        const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01, d = Math.sqrt(d2);
+        let f = 2000 / d2; if (f > 4) f = 4;
+        const fx = dx / d * f, fy = dy / d * f;
+        a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+      }
+      const an = anchorOf(a);
+      a.vx += (an.x - a.x) * 0.022; a.vy += (an.y - a.y) * 0.022;
+    }
+    for (const e of edges) {
+      const a = nodes.get(e.a), b = nodes.get(e.b); if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+      const same = a.data.project === b.data.project;
+      const ideal = e.type === "supersede" ? 54 : (same ? 72 : 130);
+      const f = (d - ideal) * 0.02, fx = dx / d * f, fy = dy / d * f;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+    const B = 1500;
+    for (const n of arr) {
+      if (n === dragNode) continue;
+      n.vx *= 0.84; n.vy *= 0.84; n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(-B, Math.min(W + B, n.x)); n.y = Math.max(-B, Math.min(H + B, n.y));
+      if (n.pulse > 0) n.pulse = Math.max(0, n.pulse - 0.012);
+    }
+  }
+
+  function draw() {
+    const DPR = window.devicePixelRatio || 1;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(cam.x, cam.y); ctx.scale(cam.scale, cam.scale);
+    const lw = 1 / cam.scale;
+    for (const e of edges) {
+      const a = nodes.get(e.a), b = nodes.get(e.b); if (!a || !b) continue;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      if (e.type === "supersede") { ctx.strokeStyle = cat.task; ctx.globalAlpha = 0.6; ctx.setLineDash([4 * lw, 3 * lw]); ctx.lineWidth = 1.3 * lw; }
+      else { ctx.strokeStyle = borderSoft; ctx.globalAlpha = 0.45; ctx.setLineDash([]); ctx.lineWidth = lw; }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.setLineDash([]);
+    const now = performance.now();
+    for (const n of nodes.values()) {
+      const d = n.data;
+      let s = 1; if (n.born) { const t = (now - n.born) / 600; if (t < 1) s = easeOut(t); else n.born = 0; }
+      const r = n.r * s;
+      if (n.pulse > 0) { ctx.beginPath(); ctx.arc(n.x, n.y, r + (1 - n.pulse) * 18, 0, 6.2832); ctx.strokeStyle = accent; ctx.globalAlpha = n.pulse * 0.7; ctx.lineWidth = 2 * lw; ctx.stroke(); ctx.globalAlpha = 1; }
+      if (n.born) { ctx.beginPath(); ctx.arc(n.x, n.y, r + 6, 0, 6.2832); ctx.fillStyle = accent; ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832);
+      ctx.fillStyle = cat[d.category] || fg3; ctx.globalAlpha = d.superseded ? 0.35 : 1; ctx.fill(); ctx.globalAlpha = 1;
+      if (hover === n) { ctx.lineWidth = 2 * lw; ctx.strokeStyle = accent; ctx.stroke(); }
+    }
+    ctx.restore();
+
+    // screen-space labels: project name above each cluster
+    ctx.font = '11px "JetBrains Mono", monospace'; ctx.textAlign = "center";
+    if (anchors.size > 1) {
+      const lab = new Map();
+      for (const n of nodes.values()) {
+        const sx = n.x * cam.scale + cam.x, sy = n.y * cam.scale + cam.y;
+        let L = lab.get(n.data.project); if (!L) { L = { minY: sy, sx: 0, c: 0 }; lab.set(n.data.project, L); }
+        L.minY = Math.min(L.minY, sy); L.sx += sx; L.c++;
+      }
+      ctx.fillStyle = fgDim;
+      for (const [name, L] of lab) ctx.fillText(name, L.sx / L.c, L.minY - 12);
+    }
+    if (hover) { ctx.fillStyle = fg3; ctx.fillText(trunc(hover.data.title, 30), hover.x * cam.scale + cam.x, hover.y * cam.scale + cam.y - hover.r * cam.scale - 8); }
+  }
+
+  function pick(wx, wy) { let best = null, bd = 1e9; for (const n of nodes.values()) { const dx = n.x - wx, dy = n.y - wy, d = dx * dx + dy * dy, rr = n.r + 6; if (d < rr * rr && d < bd) { bd = d; best = n; } } return best; }
+  const localXY = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  canvas.addEventListener("mousemove", (e) => {
+    const [sx, sy] = localXY(e);
+    if (downAt && (Math.abs(sx - downAt.sx) > 3 || Math.abs(sy - downAt.sy) > 3)) moved = true;
+    if (dragNode) { const [wx, wy] = toWorld(sx, sy); dragNode.x = wx; dragNode.y = wy; dragNode.vx = 0; dragNode.vy = 0; tip.style.display = "none"; return; }
+    if (panning) { cam.x = panStart.cx + (sx - panStart.sx); cam.y = panStart.cy + (sy - panStart.sy); tip.style.display = "none"; return; }
+    const [wx, wy] = toWorld(sx, sy);
+    hover = pick(wx, wy);
+    if (hover) {
+      tip.style.display = "block"; tip.style.left = (sx + 14) + "px"; tip.style.top = (sy + 10) + "px";
+      tip.innerHTML = '<div style="font-weight:600;margin-bottom:4px">' + esc(hover.data.title) + '</div><div style="font:10px var(--lc-mono);color:var(--lc-fg-3)">' + hover.data.category + " · " + esc(hover.data.project) + " · imp " + hover.data.importance + " · " + ago(hover.data.ageMins) + " ago</div>";
+      canvas.style.cursor = "pointer";
+    } else { tip.style.display = "none"; canvas.style.cursor = "grab"; }
+  });
+  canvas.addEventListener("mousedown", (e) => {
+    const [sx, sy] = localXY(e); const [wx, wy] = toWorld(sx, sy);
+    downAt = { sx, sy }; moved = false;
+    const n = pick(wx, wy);
+    if (n) { dragNode = n; } else { panning = true; panStart = { sx, sy, cx: cam.x, cy: cam.y }; }
+    canvas.style.cursor = "grabbing";
+  });
+  canvas.addEventListener("click", (e) => { if (moved) return; const [sx, sy] = localXY(e); const n = pick(...toWorld(sx, sy)); if (n) go("/memory/" + n.id); });
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const [sx, sy] = localXY(e); const [wx, wy] = toWorld(sx, sy);
+    const ns = Math.max(0.25, Math.min(4, cam.scale * (e.deltaY < 0 ? 1.12 : 0.89)));
+    cam.x = sx - wx * ns; cam.y = sy - wy * ns; cam.scale = ns;
+  }, { passive: false });
+  canvas.addEventListener("mouseleave", () => { hover = null; tip.style.display = "none"; });
+  const onUp = () => { dragNode = null; panning = false; downAt = null; canvas.style.cursor = "grab"; };
+  const onResize = () => resize();
+  window.addEventListener("mouseup", onUp);
+  window.addEventListener("resize", onResize);
+
+  function loop() { if (!wrap.isConnected) return stop(); step(); draw(); raf = requestAnimationFrame(loop); }
+  function stop() { if (raf) cancelAnimationFrame(raf); raf = null; if (timer) clearInterval(timer); window.removeEventListener("mouseup", onUp); window.removeEventListener("resize", onResize); }
+
+  async function reload() { try { ingest(await fetchJson("/api/graph" + (project ? "?project=" + encodeURIComponent(project) : ""))); } catch (e) {} }
+
+  requestAnimationFrame(() => { resize(); ingest(initial); loop(); });
+  timer = setInterval(reload, 4000);
+  return main;
+}
+
+// ---- TIMELINE ----
+function timelineMain(data) {
+  const main = el("main", { class: "lc-main" });
+  main.append(el("div", { class: "lc-crumbs" }, el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"), el("span", { class: "here" }, "Timeline")));
+  main.append(el("div", { class: "lc-main-head" }, el("div", null, el("h1", null, "Timeline")), el("div", { class: "subtitle" }, data.entries.length + " most recent · all projects")));
+  if (!data.entries.length) { main.append(emptyState("Nothing yet", "Memories appear here as your agents write them.", "")); return main; }
+  const tl = el("div", { class: "lc-timeline" });
+  const groups = [], map = new Map();
+  for (const e of data.entries) {
+    const d = new Date(e.updatedAt), key = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+    let g = map.get(key); if (!g) { g = { date: d, items: [] }; map.set(key, g); groups.push(g); }
+    g.items.push(e);
+  }
+  for (const g of groups) {
+    tl.append(el("div", { class: "lc-tl-band" },
+      el("div", { class: "lc-tl-day" },
+        el("div", { class: "d-num" }, String(g.date.getDate())),
+        el("div", { class: "d-dow" }, g.date.toLocaleDateString("en-US", { weekday: "short" }) + " · " + g.date.toLocaleDateString("en-US", { month: "short" })),
+        el("div", { class: "d-count" }, g.items.length + " memories")),
+      el("div", { class: "lc-tl-entries" }, g.items.map((e) => el("div", { class: "lc-tl-entry", style: { cursor: "pointer" }, onclick: () => go("/memory/" + e.id) },
+        el("div", { class: "when" }, new Date(e.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) + " · " + e.project),
+        el("div", { class: "title" }, e.title),
+        el("div", { class: "row" }, cat(e.category), importance(e.importance)))))));
+  }
+  main.append(tl);
+  return main;
+}
+
+// ---- LIVE AGENTS ----
+function liveMain(initial) {
+  const main = el("main", { class: "lc-main" });
+  main.append(el("div", { class: "lc-crumbs" }, el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"), el("span", { class: "here" }, "Live")));
+  main.append(el("div", { class: "lc-main-head" }, el("div", null, el("h1", null, "Live · agents")), el("div", { class: "subtitle" }, el("span", { class: "live-dot" }, "STREAMING · polling 3s"))));
+  const body = el("div", { class: "lc-panel-body" });
+  main.append(el("div", { class: "lc-panel" }, el("div", { class: "lc-panel-h" }, "Activity", el("span", { class: "meta" }, "writes & recalls · newest first")), body));
+
+  function render(events) {
+    body.innerHTML = "";
+    if (!events.length) { body.append(emptyState("Quiet right now", "Agent writes and recalls stream in here as they happen.", "")); return; }
+    for (const e of events) {
+      const write = e.kind === "write";
+      body.append(el("div", { class: "lc-card", onclick: () => go("/memory/" + e.id) },
+        el("div", { class: "row2" },
+          el("span", { style: { width: "7px", height: "7px", borderRadius: "50%", display: "inline-block", background: write ? "var(--status-ok)" : "var(--lc-accent)" } }),
+          el("span", { style: { color: write ? "var(--status-ok)" : "var(--lc-accent)", fontFamily: "var(--lc-mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em" } }, write ? "wrote" : "recalled"),
+          cat(e.category), el("span", { class: "proj" }, e.project), el("span", null, "· " + ago(e.ageMins) + " ago")),
+        el("div", { class: "title" }, e.title)));
+    }
+  }
+  render(initial.events || []);
+  const timer = setInterval(async () => {
+    if (!main.isConnected) { clearInterval(timer); return; }
+    try { render((await fetchJson("/api/activity")).events); } catch (e) {}
+  }, 3000);
+  return main;
+}
+
+// ---- SETTINGS ----
+function settingsMain(s) {
+  const main = el("main", { class: "lc-main" });
+  main.append(el("div", { class: "lc-crumbs" }, el("a", { onclick: () => go("/") }, "Dashboard"), el("span", { class: "sep" }, "/"), el("span", { class: "here" }, "Settings")));
+  main.append(el("div", { class: "lc-main-head" }, el("div", null, el("h1", null, "Settings")), el("div", { class: "subtitle" }, "v" + s.version)));
+  const row = (k, val) => el("div", { class: "lc-meta-row" }, el("span", { class: "k" }, k), el("span", { class: "v" }, val));
+  main.append(el("div", { class: "lc-panel", style: { maxWidth: "640px" } },
+    el("div", { class: "lc-panel-h" }, "Configuration", el("span", { class: "meta" }, "read-only")),
+    el("div", { class: "lc-panel-body" },
+      row("memory scope", s.config.memoryScope),
+      row("data dir", s.dataDir),
+      row("config file", s.configPath),
+      row("default importance", String(s.config.defaultImportance)),
+      row("max context tokens", String(s.config.maxContextTokens)))));
+  const curT = () => document.documentElement.dataset.lcTheme || "dark";
+  const curA = () => document.documentElement.dataset.lcAccent || "cyan";
+  main.append(el("div", { class: "lc-panel", style: { maxWidth: "640px", marginTop: "16px" } },
+    el("div", { class: "lc-panel-h" }, "Appearance"),
+    el("div", { class: "lc-panel-body" },
+      el("div", { class: "lc-meta-row" }, el("span", { class: "k" }, "theme"), el("button", { class: "lc-btn", onclick: () => setTheme(curT() === "light" ? "dark" : "light") }, "Theme: " + curT())),
+      el("div", { class: "lc-meta-row", style: { marginTop: "8px" } }, el("span", { class: "k" }, "accent"), el("button", { class: "lc-btn", onclick: () => setAccent(curA() === "amber" ? "cyan" : "amber") }, "Accent: " + curA())))));
+  return main;
+}
+
+// ---- COMMAND PALETTE (Cmd+K) ----
+let cmdkOpen = false;
+function openCmdK() {
+  if (cmdkOpen) return;
+  cmdkOpen = true;
+  let items = [], sel = 0;
+  const input = el("input", { placeholder: "Search memories or jump to…" });
+  const list = el("div", { class: "lc-cmdk-list" });
+  const palette = el("div", { class: "lc-cmdk" },
+    el("div", { class: "lc-cmdk-input" }, icon("search", "icon"), input, el("span", { class: "kbd-esc" }, kbd("Esc"))),
+    list,
+    el("div", { class: "lc-cmdk-foot" }, el("span", null, "↑↓ navigate"), el("span", null, "↵ open"), el("span", null, "esc close")));
+  const veil = el("div", { class: "lc-cmdk-veil", style: { position: "fixed", zIndex: "50" }, onclick: (e) => { if (e.target === veil) close(); } }, palette);
+  document.body.append(veil);
+
+  function baseCommands() {
+    const nav = [
+      { group: "Go to", icon: "home", name: "Dashboard", run: () => go("/") },
+      { group: "Go to", icon: "globe", name: "Global", run: () => go("/global") },
+      { group: "Go to", icon: "search", name: "Search", run: () => go("/search") },
+      { group: "Go to", icon: "clock", name: "Timeline", run: () => go("/timeline") },
+      { group: "Go to", icon: "graph", name: "Graph", run: () => go("/graph") },
+      { group: "Go to", icon: "bolt", name: "Live · agents", run: () => go("/live") },
+      { group: "Go to", icon: "settings", name: "Settings", run: () => go("/settings") },
+      { group: "Action", icon: "moon", name: "Toggle theme", meta: "⌘⇧T", run: () => toggleTheme() },
+    ];
+    const projs = (_shell ? _shell.projects : []).map((p) => ({ group: "Projects", icon: "folder", name: p.name, meta: p.count + " mem", run: () => go("/projects/" + p.id) }));
+    return nav.concat(projs);
+  }
+  async function refresh() {
+    const raw = input.value.trim(), q = raw.toLowerCase();
+    let base = baseCommands();
+    if (q) base = base.filter((c) => c.name.toLowerCase().includes(q));
+    let mem = [];
+    if (raw.length >= 2) {
+      try { mem = (await fetchJson("/api/search?q=" + encodeURIComponent(raw))).results.slice(0, 6).map((m) => ({ group: "Memories", icon: "dot", name: m.title, meta: m.project, run: () => go("/memory/" + m.id) })); } catch (e) {}
+    }
+    items = base.concat(mem); sel = 0; renderList();
+  }
+  function renderList() {
+    list.innerHTML = "";
+    if (!items.length) { list.append(el("div", { class: "lc-cmdk-group" }, "No matches")); return; }
+    let lg = null;
+    items.forEach((it, i) => {
+      if (it.group !== lg) { list.append(el("div", { class: "lc-cmdk-group" }, it.group)); lg = it.group; }
+      const node = el("div", { class: "lc-cmdk-item" + (i === sel ? " active" : ""), onclick: () => exec(i), onmousemove: () => { if (sel !== i) { sel = i; hl(); } } },
+        icon(it.icon || "dot", "ico"), el("span", { class: "name" }, it.name), it.meta ? el("span", { class: "meta" }, it.meta) : el("span"));
+      node._idx = i; list.append(node);
+    });
+  }
+  function hl() { list.querySelectorAll(".lc-cmdk-item").forEach((n) => n.classList.toggle("active", n._idx === sel)); }
+  function exec(i) { const it = items[i]; if (it) { close(); it.run(); } }
+  function onKey(e) {
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); sel = Math.min(items.length - 1, sel + 1); hl(); sc(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); hl(); sc(); }
+    else if (e.key === "Enter") { e.preventDefault(); exec(sel); }
+  }
+  function sc() { const n = list.querySelector(".lc-cmdk-item.active"); if (n) n.scrollIntoView({ block: "nearest" }); }
+  function close() { cmdkOpen = false; document.removeEventListener("keydown", onKey, true); veil.remove(); }
+  input.addEventListener("input", refresh);
+  document.addEventListener("keydown", onKey, true);
+  refresh();
+  setTimeout(() => input.focus(), 0);
+}
+
+// ---- router ----
+let _shell = null;
+let projectsExpanded = false;
+async function ensureShell() { if (!_shell) _shell = await fetchJson("/api/dashboard"); return _shell; }
+
+function renderShell(active, activeProjectId, mainNode) {
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+  root.append(el("div", { class: "lc-app" }, topBar(_shell.stats), sidebar(_shell, active, activeProjectId), mainNode));
+}
+function showError(msg) {
+  document.getElementById("root").innerHTML = '<div class="lc-loading">' + msg + "</div>";
+}
+
+async function route() {
+  const p = location.pathname;
+  try {
+    await ensureShell();
+    let m;
+    if ((m = p.match(/^\/projects\/(.+)$/))) {
+      const data = await fetchJson("/api/project?id=" + encodeURIComponent(decodeURIComponent(m[1])));
+      renderShell("project", data.project.id, projectMain(data));
+    } else if ((m = p.match(/^\/memory\/(.+)$/))) {
+      const mem = await fetchJson("/api/memory?id=" + encodeURIComponent(decodeURIComponent(m[1])));
+      renderShell("memory", mem.projectId, memoryMain(mem));
+    } else if (p === "/graph") {
+      const g = await fetchJson("/api/graph");
+      renderShell("graph", null, graphMain(g));
+    } else if (p === "/global") {
+      renderShell("global", null, projectMain(await fetchJson("/api/global")));
+    } else if (p === "/search") {
+      const q = new URLSearchParams(location.search).get("q") || "";
+      renderShell("search", null, searchMain(q));
+    } else if (p === "/timeline") {
+      renderShell("timeline", null, timelineMain(await fetchJson("/api/timeline")));
+    } else if (p === "/live") {
+      renderShell("live", null, liveMain(await fetchJson("/api/activity")));
+    } else if (p === "/settings") {
+      renderShell("settings", null, settingsMain(await fetchJson("/api/settings")));
+    } else {
+      _shell = await fetchJson("/api/dashboard"); // refresh on dashboard view
+      renderShell("dashboard", null, dashboardMain(_shell));
+    }
+  } catch (e) { showError("failed to load: " + (e && e.message ? e.message : e)); }
+}
+
+function setTheme(t) { document.documentElement.dataset.lcTheme = t; try { localStorage.setItem("lc-theme", t); } catch (e) {} route(); }
+function setAccent(a) { document.documentElement.dataset.lcAccent = a; try { localStorage.setItem("lc-accent", a); } catch (e) {} route(); }
+function toggleTheme() { setTheme(document.documentElement.dataset.lcTheme === "light" ? "dark" : "light"); }
+
+(function init() {
+  try { const s = localStorage.getItem("lc-theme"); if (s) document.documentElement.dataset.lcTheme = s; const ac = localStorage.getItem("lc-accent"); if (ac) document.documentElement.dataset.lcAccent = ac; } catch (e) {}
+  window.addEventListener("popstate", route);
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); openCmdK(); }
+    else if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); toggleTheme(); }
+  });
+  route();
+})();
+</script>
+</body>
+</html>

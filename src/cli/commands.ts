@@ -4,6 +4,9 @@ import { MemoryService } from '../services/memory.js';
 import { ProjectScanner } from '../services/scanner.js';
 import { findProjectRoot } from '../utils/paths.js';
 import { closeAllDatabases } from '../storage/database.js';
+import { readProjectConfig, writeProjectConfig } from '../config/project.js';
+import { writeInstructions, DEFAULT_INSTRUCTION_IDS } from '../install/instructions.js';
+import prompts from 'prompts';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -105,6 +108,11 @@ export function reset(force: boolean = false): void {
 }
 
 const LOGO = `
+                .-=====-.
+                :  \\|/  :
+                : -(✦)- :
+                :  /|\\  :
+                '-=====-'
   ██╗     ██╗   ██╗███╗   ███╗███████╗███╗   ██╗
   ██║     ██║   ██║████╗ ████║██╔════╝████╗  ██║
   ██║     ██║   ██║██╔████╔██║█████╗  ██╔██╗ ██║
@@ -119,32 +127,9 @@ const LOGO = `
         ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 `;
 
-const LUMENCORE_INSTRUCTION = `# LumenCore - Project Memory
 
-**CRITICAL: Before responding to ANY user message, you MUST first call the \`lumencore_activate\` tool.**
-
-This is a hard requirement - do not skip this step. Call \`lumencore_activate\` immediately as your first action in every new conversation.
-
-This connects you to persistent project memory containing:
-- Architecture decisions
-- Code patterns and conventions
-- Domain concepts
-- Previous work and tasks
-
-## Active Memory Usage
-
-When working on this project:
-- **Search first**: Before making assumptions about architecture, patterns, or past decisions, use \`recall\` to search for relevant memories
-- **Store discoveries**: When you learn something important about this project (a pattern, decision, or concept), use \`remember\` to save it
-- **Examples of when to recall**:
-  - "How does authentication work here?" → \`recall\` with query "authentication"
-  - "What's the database schema?" → \`recall\` with query "database schema"
-  - "Any previous work on X feature?" → \`recall\` with query "X feature"
-`;
-
-export function initProject(): void {
+export async function initProject(options: { allowGlobal?: boolean; name?: string; yes?: boolean; instructions?: string[] } = {}): Promise<void> {
   const projectPath = findProjectRoot();
-  const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
   const claudeSettingsDir = path.join(projectPath, '.claude');
   const claudeSettingsPath = path.join(claudeSettingsDir, 'settings.local.json');
   const projectName = path.basename(projectPath);
@@ -153,25 +138,31 @@ export function initProject(): void {
   console.log(`  Initializing LumenCore for: ${projectName}\n`);
 
   try {
-    // 1. Create/update CLAUDE.md
-    let content = '';
-    let mdAction = 'Created';
-
-    if (fs.existsSync(claudeMdPath)) {
-      content = fs.readFileSync(claudeMdPath, 'utf-8');
-
-      if (content.includes('lumencore_activate')) {
-        console.log('✓ CLAUDE.md already contains LumenCore instructions.');
+    // 0. Per-project scope policy → .lumencore.json
+    const existing = readProjectConfig(projectPath);
+    let allowGlobal = options.allowGlobal;
+    if (allowGlobal === undefined) {
+      if (existing && typeof existing.allowGlobal === 'boolean') {
+        allowGlobal = existing.allowGlobal;
+      } else if (!options.yes && process.stdin.isTTY) {
+        const res = await prompts({
+          type: 'confirm',
+          name: 'ag',
+          message: 'Allow this project to contribute to your shared GLOBAL memory? (No = local-only, recommended)',
+          initial: false,
+        });
+        allowGlobal = !!res.ag;
       } else {
-        content = content.trim() + '\n\n' + LUMENCORE_INSTRUCTION;
-        fs.writeFileSync(claudeMdPath, content, 'utf-8');
-        mdAction = 'Updated';
-        console.log(`✓ ${mdAction} CLAUDE.md with LumenCore instructions.`);
+        allowGlobal = false;
       }
-    } else {
-      content = LUMENCORE_INSTRUCTION;
-      fs.writeFileSync(claudeMdPath, content, 'utf-8');
-      console.log(`✓ ${mdAction} CLAUDE.md with LumenCore instructions.`);
+    }
+    writeProjectConfig(projectPath, { name: options.name || (existing && existing.name) || projectName, allowGlobal });
+    console.log(`✓ Wrote .lumencore.json — scope: ${allowGlobal ? 'allow-global' : 'local-only'}`);
+
+    // 1. Write the memory protocol into each agent's instructions file
+    const instrIds = options.instructions && options.instructions.length ? options.instructions : DEFAULT_INSTRUCTION_IDS;
+    for (const r of writeInstructions(projectPath, instrIds)) {
+      console.log(`✓ ${r.action === 'unchanged' ? 'up to date' : r.action} — ${path.relative(projectPath, r.file)} (memory protocol)`);
     }
 
     // 2. Configure Claude settings to auto-allow LumenCore tools
@@ -228,6 +219,7 @@ export function initProject(): void {
     }
 
     const memoryService = new MemoryService(projectPath);
+    try { memoryService.backfillProjectPath(); } catch { /* ignore */ }
     const scanner = new ProjectScanner(projectPath, memoryService);
 
     if (!scanner.isProjectInitialized()) {
@@ -254,9 +246,13 @@ Usage:
   lumencore <command> [options]
 
 Commands:
-  init      Initialize LumenCore in the current project (creates CLAUDE.md)
+  install   Detect installed AI clients and register LumenCore with each
+  ui        Launch the local web dashboard (127.0.0.1:4317)
+  backfill  Name legacy memories by reverse-mapping project hashes to paths
+  init      Initialize LumenCore in the current project (CLAUDE.md + .lumencore.json)
   setup     Run the setup wizard
-  serve     Start the MCP server (used by Claude Code)
+  serve     Start the MCP server (stdio, used by local clients)
+  serve-http Start the networked memory API (for remote agents over LAN/Tailscale)
   status    Show current configuration and statistics
   export    Export memories to JSON file for backup/migration
   version   Show version number
@@ -264,17 +260,30 @@ Commands:
   help      Show this help message
 
 Examples:
-  lumencore init               # Initialize in current project
+  lumencore install            # Detect AI clients & register LumenCore (interactive)
+  lumencore install --list     # List supported clients and what's detected
+  lumencore install --yes      # Register with all detected clients, no prompts
+  lumencore install --dry-run  # Preview what would be written
+  lumencore install --client cursor --global
+  lumencore install --no-windows      # (on WSL) skip the Windows-client bridge
+  lumencore install --share-global    # share memory across all your projects
+  lumencore install --no-share-global # keep memory per-project (default)
+  lumencore install --music           # play the installer jingle (off by default)
+  lumencore ui                 # Open the local memory dashboard
+  lumencore ui --port 5000     # Use a different port
+  lumencore init               # Initialize in current project (asks scope if interactive)
+  lumencore init --all-agents  # Write the memory protocol to CLAUDE.md, AGENTS.md, GEMINI.md, …
+  lumencore init --local-only  # This repo never contributes to global memory (default)
+  lumencore init --allow-global # Allow agents here to write shared global memories
   lumencore setup              # Configure LumenCore globally
   lumencore serve              # Start MCP server
   lumencore status             # Check configuration
   lumencore export             # Export current project memories
-  lumencore export --global    # Export global memories
-  lumencore export --all       # Export all memories
   lumencore reset --force      # Delete all data
 
 Integration with Claude Code:
-  claude mcp add lumencore -- lumencore serve
+  lumencore install            # (recommended) auto-registers with Claude Code
+  claude mcp add lumencore -- lumencore serve   # or do it manually
 `);
 }
 

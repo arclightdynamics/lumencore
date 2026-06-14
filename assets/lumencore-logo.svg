@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" role="img" aria-labelledby="title desc">
+  <title id="title">LumenCore Logo</title>
+  <desc id="desc">A dark cinematic LumenCore logo with a split circular core mark, blue-white star glow, and futuristic uppercase wordmark.</desc>
+
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#071426"/>
+      <stop offset="55%" stop-color="#030813"/>
+      <stop offset="100%" stop-color="#01040a"/>
+    </radialGradient>
+
+    <linearGradient id="whiteArc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#eef3f7"/>
+      <stop offset="100%" stop-color="#c8d0d8"/>
+    </linearGradient>
+
+    <linearGradient id="blueArc" x1="15%" y1="0%" x2="95%" y2="100%">
+      <stop offset="0%" stop-color="#105ccb"/>
+      <stop offset="45%" stop-color="#1fbfff"/>
+      <stop offset="100%" stop-color="#0e6bd6"/>
+    </linearGradient>
+
+    <linearGradient id="lumenText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#f4f4f4"/>
+      <stop offset="100%" stop-color="#cfd6df"/>
+    </linearGradient>
+
+    <linearGradient id="coreText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2bd4ff"/>
+      <stop offset="45%" stop-color="#0d91e8"/>
+      <stop offset="100%" stop-color="#0a53b6"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="11" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.05
+                0 0 0 0 0.55
+                0 0 0 0 1
+                0 0 0 0.95 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="textShadow" x="-20%" y="-60%" width="140%" height="220%">
+      <feDropShadow dx="0" dy="8" stdDeviation="5" flood-color="#000000" flood-opacity=".55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#40cfff" flood-opacity=".18"/>
+    </filter>
+
+    <filter id="arcShadow" x="-70%" y="-70%" width="240%" height="240%">
+      <feDropShadow dx="0" dy="12" stdDeviation="8" flood-color="#000000" flood-opacity=".65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#139dff" flood-opacity=".35"/>
+    </filter>
+
+    <mask id="leftArcMask">
+      <rect width="100%" height="100%" fill="black"/>
+      <path d="M305 365
+               A138 138 0 0 0 305 659"
+            fill="none" stroke="white" stroke-width="80" stroke-linecap="butt"/>
+    </mask>
+
+    <mask id="rightArcMask">
+      <rect width="100%" height="100%" fill="black"/>
+      <path d="M344 390
+               A122 122 0 0 1 344 634"
+            fill="none" stroke="white" stroke-width="62" stroke-linecap="butt"/>
+    </mask>
+  </defs>
+
+  <rect width="1536" height="1024" fill="url(#bgGlow)"/>
+
+  <!-- subtle center vignette -->
+  <ellipse cx="720" cy="520" rx="640" ry="300" fill="#071b35" opacity=".14"/>
+
+  <!-- icon glow rays -->
+  <g transform="translate(313 512)" filter="url(#softGlow)" opacity=".95">
+    <line x1="-190" y1="0" x2="210" y2="0" stroke="#27bfff" stroke-width="2" opacity=".72"/>
+    <line x1="0" y1="-178" x2="0" y2="174" stroke="#27bfff" stroke-width="3" opacity=".65"/>
+    <line x1="-74" y1="-74" x2="74" y2="74" stroke="#1a84ff" stroke-width="1.6" opacity=".35"/>
+    <line x1="-74" y1="74" x2="74" y2="-74" stroke="#1a84ff" stroke-width="1.6" opacity=".35"/>
+
+    <path d="M0 -52 L11 -12 L52 0 L11 12 L0 52 L-11 12 L-52 0 L-11 -12 Z"
+          fill="#ffffff"/>
+    <circle r="18" fill="#cfffff"/>
+    <circle r="8" fill="#ffffff"/>
+  </g>
+
+  <!-- split circular mark -->
+  <g filter="url(#arcShadow)">
+    <path d="M305 365
+             A138 138 0 0 0 305 659"
+          fill="none" stroke="url(#whiteArc)" stroke-width="80" stroke-linecap="butt"/>
+
+    <path d="M344 390
+             A122 122 0 0 1 344 634"
+          fill="none" stroke="url(#blueArc)" stroke-width="62" stroke-linecap="butt"/>
+  </g>
+
+  <!-- central divider / beam -->
+  <rect x="305" y="354" width="35" height="316" fill="#021027" opacity=".72"/>
+  <rect x="318" y="340" width="8" height="342" fill="#0b66c9" opacity=".45" filter="url(#softGlow)"/>
+
+  <!-- wordmark -->
+  <g filter="url(#textShadow)">
+    <text x="500" y="550"
+          font-family="Eurostile, Orbitron, Rajdhani, Bank Gothic, Arial, sans-serif"
+          font-size="92"
+          font-weight="700"
+          letter-spacing="27"
+          fill="url(#lumenText)">LUMEN</text>
+
+    <text x="1022" y="550"
+          font-family="Eurostile, Orbitron, Rajdhani, Bank Gothic, Arial, sans-serif"
+          font-size="92"
+          font-weight="700"
+          letter-spacing="13"
+          fill="url(#coreText)">CORE</text>
+  </g>
+</svg>

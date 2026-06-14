@@ -1,0 +1,4 @@
+name: lumencore
+version: 1.0.0
+description: "LumenCore — local-first SQLite memory served over HTTP/Tailscale. Deliberate cross-session, cross-machine memory shared by all your agents."
+pip_dependencies: []

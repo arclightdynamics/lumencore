@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../storage/database.js';
 import { getProjectDbPath, getGlobalDbPath, getProjectId } from '../utils/paths.js';
 import { getConfigManager } from '../config/manager.js';
+import { allowsGlobal } from '../config/project.js';
 export class MemoryService {
     projectPath;
     projectId;
@@ -25,6 +26,14 @@ export class MemoryService {
             content: row.content,
             tags: JSON.parse(row.tags),
             importance: row.importance,
+            source: row.source ?? null,
+            confidence: row.confidence ?? null,
+            supersedesId: row.supersedes_id ?? null,
+            supersededById: row.superseded_by_id ?? null,
+            lastAccessed: row.last_accessed ?? null,
+            accessCount: row.access_count ?? 0,
+            expiresAt: row.expires_at ?? null,
+            projectPath: row.project_path ?? null,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -32,9 +41,12 @@ export class MemoryService {
     create(input) {
         const config = getConfigManager().load();
         const scope = input.scope || 'project';
-        // Check if global scope is allowed
+        // Check if global scope is allowed (install-wide, then per-project policy)
         if (scope === 'global' && config.memoryScope === 'project-only') {
             throw new Error('Global memories are disabled. Run "lumencore setup" to enable.');
+        }
+        if (scope === 'global' && allowsGlobal(this.projectPath) === false) {
+            throw new Error('This project is local-only — global memories are disabled for it. Run "lumencore init --allow-global" to permit.');
         }
         const db = this.getDbForScope(scope);
         const now = new Date().toISOString();
@@ -48,14 +60,31 @@ export class MemoryService {
             content: input.content,
             tags: input.tags || [],
             importance: input.importance || config.defaultImportance,
+            source: input.source ?? null,
+            confidence: input.confidence ?? null,
+            supersedesId: input.supersedesId ?? null,
+            supersededById: null,
+            lastAccessed: null,
+            accessCount: 0,
+            expiresAt: input.expiresAt ?? null,
+            projectPath: scope === 'global' ? null : this.projectPath,
             createdAt: now,
             updatedAt: now,
         };
         const stmt = db.getDatabase().prepare(`
-      INSERT INTO memories (id, project_id, scope, category, title, content, tags, importance, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memories (
+        id, project_id, scope, category, title, content, tags, importance,
+        source, confidence, supersedes_id, superseded_by_id, last_accessed,
+        access_count, expires_at, project_path, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-        stmt.run(memory.id, memory.projectId, memory.scope, memory.category, memory.title, memory.content, JSON.stringify(memory.tags), memory.importance, memory.createdAt, memory.updatedAt);
+        stmt.run(memory.id, memory.projectId, memory.scope, memory.category, memory.title, memory.content, JSON.stringify(memory.tags), memory.importance, memory.source, memory.confidence, memory.supersedesId, memory.supersededById, memory.lastAccessed, memory.accessCount, memory.expiresAt, memory.projectPath, memory.createdAt, memory.updatedAt);
+        this.syncTags(db, memory.id, memory.tags);
+        // If this memory replaces another, link both sides of the relationship.
+        if (input.supersedesId) {
+            this.supersede(input.supersedesId, memory.id);
+        }
         return memory;
     }
     getById(id, scope = 'project') {
@@ -106,6 +135,18 @@ export class MemoryService {
             updates.push('importance = ?');
             values.push(input.importance);
         }
+        if (input.source !== undefined) {
+            updates.push('source = ?');
+            values.push(input.source);
+        }
+        if (input.confidence !== undefined) {
+            updates.push('confidence = ?');
+            values.push(input.confidence);
+        }
+        if (input.expiresAt !== undefined) {
+            updates.push('expires_at = ?');
+            values.push(input.expiresAt);
+        }
         if (updates.length === 0) {
             return memory;
         }
@@ -116,6 +157,9 @@ export class MemoryService {
       UPDATE memories SET ${updates.join(', ')} WHERE id = ?
     `);
         stmt.run(...values);
+        if (input.tags !== undefined) {
+            this.syncTags(db, input.id, input.tags);
+        }
         return this.getById(input.id, memory.scope);
     }
     delete(id) {
@@ -189,6 +233,80 @@ export class MemoryService {
             project: projectCount.count,
             global: globalCount.count,
         };
+    }
+    /** Mirror a memory's tags into the normalized tags / memory_tags tables. */
+    syncTags(db, memoryId, tags) {
+        const sqlite = db.getDatabase();
+        const clear = sqlite.prepare('DELETE FROM memory_tags WHERE memory_id = ?');
+        const upsertTag = sqlite.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)');
+        const tagId = sqlite.prepare('SELECT id FROM tags WHERE name = ?');
+        const link = sqlite.prepare('INSERT OR IGNORE INTO memory_tags (memory_id, tag_id) VALUES (?, ?)');
+        const apply = sqlite.transaction((names) => {
+            clear.run(memoryId);
+            for (const raw of names) {
+                const name = raw.trim();
+                if (!name)
+                    continue;
+                upsertTag.run(name);
+                const row = tagId.get(name);
+                link.run(memoryId, row.id);
+            }
+        });
+        apply(tags);
+    }
+    /**
+     * Record that one memory replaces another: sets superseded_by_id on the old
+     * memory and supersedes_id on the new one. Works across project/global scope.
+     */
+    supersede(oldId, newId) {
+        const oldMem = this.getById(oldId, 'project') ?? this.getById(oldId, 'global');
+        const newMem = this.getById(newId, 'project') ?? this.getById(newId, 'global');
+        if (!oldMem || !newMem) {
+            return false;
+        }
+        const now = new Date().toISOString();
+        this.getDbForScope(oldMem.scope)
+            .getDatabase()
+            .prepare('UPDATE memories SET superseded_by_id = ?, updated_at = ? WHERE id = ?')
+            .run(newId, now, oldId);
+        this.getDbForScope(newMem.scope)
+            .getDatabase()
+            .prepare('UPDATE memories SET supersedes_id = ?, updated_at = ? WHERE id = ?')
+            .run(oldId, now, newId);
+        return true;
+    }
+    /**
+     * Set project_path on this project's rows that are missing it (legacy memories
+     * written before the column existed). Self-heals project names in the dashboard
+     * the next time the server starts. Returns the number of rows fixed.
+     */
+    backfillProjectPath() {
+        const db = this.getDbForScope('project').getDatabase();
+        const res = db
+            .prepare("UPDATE memories SET project_path = ? WHERE project_id = ? AND (project_path IS NULL OR project_path = '')")
+            .run(this.projectPath, this.projectId);
+        return res.changes;
+    }
+    /** Bump access_count / last_accessed for retrieved memories, grouped by scope. */
+    recordAccess(accessed) {
+        if (accessed.length === 0) {
+            return;
+        }
+        const now = new Date().toISOString();
+        for (const scope of ['project', 'global']) {
+            const ids = accessed.filter((a) => a.scope === scope).map((a) => a.id);
+            if (ids.length === 0) {
+                continue;
+            }
+            const sqlite = this.getDbForScope(scope).getDatabase();
+            const stmt = sqlite.prepare('UPDATE memories SET access_count = access_count + 1, last_accessed = ? WHERE id = ?');
+            const bump = sqlite.transaction((rows) => {
+                for (const id of rows) {
+                    stmt.run(now, id);
+                }
+            });
+            bump(ids);
+        }
     }
 }
 //# sourceMappingURL=memory.js.map

@@ -1,0 +1,1 @@
+{"version":3,"file":"wsl.d.ts","sourceRoot":"","sources":["../../src/install/wsl.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,WAAW,EAAE,MAAM,YAAY,CAAC;AAEzC,iCAAiC;AACjC,wBAAgB,KAAK,IAAI,OAAO,CAQ/B;AAED,wBAAgB,SAAS,IAAI,MAAM,CAElC;AAED;;;GAGG;AACH,wBAAgB,YAAY,IAAI,MAAM,EAAE,CAkBvC;AAED;;;;GAIG;AACH,wBAAgB,cAAc,CAAC,MAAM,EAAE,MAAM,GAAG,WAAW,CAE1D"}

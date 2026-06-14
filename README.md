@@ -1,174 +1,189 @@
 # LumenCore
 
-**Persistent project memory for AI agents.**
+**The local-first memory layer for AI agents — one you can actually sit down and watch.**
 
-LumenCore is a local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI coding assistants like Claude Code persistent memory across sessions. It solves the problem of context loss when conversations reset, allowing agents to retain architectural decisions, code patterns, domain knowledge, and project history.
+LumenCore is a local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI coding assistants (Claude Code, Cursor, and ~15 others) persistent memory across sessions — architectural decisions, code patterns, domain concepts, and project history. No Docker, no API keys, no cloud. Just `npm install` and a SQLite file on your machine.
 
-## The Problem
+What makes it different from other memory tools:
 
-AI coding assistants lose all context when a session ends. Every new conversation starts from scratch, requiring you to re-explain:
-- Architectural decisions and their rationale
-- Code conventions and patterns used in the project
-- Domain-specific concepts and terminology
-- Previous work and ongoing tasks
+- 🧠 **Deliberate memory** — agents store knowledge by *choosing* to, not by silently vacuuming every turn.
+- 🖥️ **A real dashboard** — `lumencore ui` is a Linear-style local web app to browse, search, edit, and **watch a live force-directed graph** of what your agents know.
+- 🔌 **One-command install** — auto-detects ~15 MCP clients and wires them up; **WSL-aware** (bridges Windows tools to your WSL brain).
+- 🌐 **Networked** — optionally serve one shared brain across machines over your LAN/Tailscale.
+- ⚖️ **Conflict-aware** — detects overlapping memories and supports supersession, so old facts don't silently contradict new ones.
+- 🔒 **Local & private** — everything stays in local SQLite; the default install makes zero network calls.
 
-## The Solution
+---
 
-LumenCore provides a local memory layer that AI agents can read from and write to. When Claude Code connects to LumenCore, it can:
-- **Remember** important decisions, patterns, and concepts
-- **Recall** relevant context using full-text search
-- **Activate** automatically at session start to load project knowledge
-
-All data stays local on your machine in a SQLite database.
-
-## Installation
+## Install
 
 ```bash
 npm install -g lumencore
+lumencore install        # detect your AI clients and connect them (interactive)
 ```
 
-## Quick Start
+`lumencore install` finds the MCP clients you have and registers LumenCore with each. On **WSL**, it also offers to connect your **Windows-side** clients to the same WSL brain.
 
 ```bash
-# 1. Add LumenCore to Claude Code (once per machine)
-claude mcp add lumencore -- lumencore serve
+lumencore install --list        # show what's detected (incl. Windows-side on WSL)
+lumencore install --yes         # connect everything detected, no prompts
+lumencore install --dry-run     # preview, write nothing
+lumencore install --client cursor --global
+lumencore install --no-windows  # (on WSL) skip the Windows bridge
+```
 
-# 2. Initialize in your project
+Every write is **merge-aware** (your existing config is preserved) and **backed up** (`*.lumencore.bak`) first.
+
+### Supported clients
+
+Auto-configured by `lumencore install`:
+
+| Format | Clients |
+|--------|---------|
+| JSON | Claude Code, Claude Desktop, Cursor, Cline, Roo Code, VS Code / Copilot, Zed, Gemini CLI, LM Studio, Junie, Amazon Q, Warp |
+| TOML | OpenAI Codex CLI |
+| YAML | Goose, Continue.dev |
+
+Detected but manual (no writable config): Witsy, Cherry Studio.
+
+---
+
+## Quick start
+
+```bash
 cd /your/project
-lumencore init
-
-# 3. Start Claude - LumenCore activates automatically
-claude
+lumencore init           # writes CLAUDE.md + .lumencore.json, scans the project
+lumencore ui             # open the dashboard at http://localhost:4317
 ```
 
-## What `lumencore init` Does
+Then just use your agent. When it makes a decision worth keeping, it calls `remember`; when it needs context, it calls `recall`.
 
-The `init` command sets up everything for seamless integration:
+---
 
-1. **Creates/updates CLAUDE.md** - Instructs Claude to activate LumenCore at conversation start
-2. **Configures permissions** - Auto-allows all LumenCore tools (no permission prompts)
-3. **Scans your project** - Captures structure, tech stack, and key files
+## CLI commands
 
-## CLI Commands
+| Command | What it does |
+|---------|--------------|
+| `lumencore install` | Detect AI clients and register LumenCore (WSL-aware, multi-select) |
+| `lumencore ui` | Launch the local web dashboard (`127.0.0.1:4317`) |
+| `lumencore serve` | Start the stdio MCP server (used by local clients) |
+| `lumencore serve-http` | Start the **networked** memory API (share one brain over LAN/Tailscale) |
+| `lumencore init` | Set up the current project (CLAUDE.md, `.lumencore.json`, scan) |
+| `lumencore backfill` | Name legacy memories by reverse-mapping project hashes → paths |
+| `lumencore setup` | Global setup wizard (memory scope, data dir) |
+| `lumencore status` | Show config + memory stats |
+| `lumencore export` | Export memories to JSON (`--global`, `--all`, `-o file`) |
+| `lumencore reset --force` | Delete all data |
+
+---
+
+## MCP tools (what your agent can call)
+
+| Tool | Purpose |
+|------|---------|
+| `lumencore_activate` | Load project context at session start (auto-called) |
+| `remember` | Store a memory (category, title, content, tags, importance, scope, source, confidence, expires_at) |
+| `recall` | Full-text search; bumps access tracking |
+| `list_memories` | Browse memories |
+| `update_memory` | Edit a memory in place |
+| `forget` | Delete a memory |
+| `supersede_memory` | Mark one memory as replaced by another (links both) |
+| `check_conflicts` | Find memories overlapping a prospective one, before writing |
+| `capture_turn` | After an exchange, suggest what's worth remembering (you confirm) |
+| `init_project` | Scan + capture a new project |
+
+> **Deliberate by design:** LumenCore never auto-captures your edits or chat. Memory only changes when the agent explicitly calls `remember` / `update_memory` / etc. `capture_turn` *suggests*; the agent confirms.
+
+---
+
+## How memory works
+
+**Categories:** `decision` · `pattern` · `concept` · `note` · `task`
+**Importance:** 1–5. **Scope:** `project` (default) or `global` (shared across projects).
+
+Each memory also tracks `source`, `confidence`, `tags`, `access_count` / `last_accessed`, optional `expires_at`, and supersession links (`supersedes` / `superseded_by`).
+
+### Retrieval
+FTS5 full-text search ranked by **BM25 relevance** (title/tag matches weighted above body), then nudged by **soft priors** — importance and recency multiply the score but never override relevance. (Recently-recalled is driven by the access tracking, so the dashboard shows what your agents actually use.)
+
+### Conflicts & supersession
+On every `remember`, LumenCore looks for overlapping memories and returns a "possible conflict" envelope. The agent resolves it next turn with `supersede_memory` (old → new), `update_memory`, or by letting them coexist. Superseded memories drop out of future recalls and conflict checks.
+
+### Per-project policy — `.lumencore.json`
+`lumencore init` writes a small file at the repo root:
+
+```json
+{ "name": "my-project", "allowGlobal": false }
+```
+
+- `name` — a stable project identity (survives path moves / reclones).
+- `allowGlobal` — may agents in this repo write **global** memories? Default **false** (local-only, privacy-safe). Set it with `lumencore init --allow-global`. Global writes from a local-only project are refused server-side.
+
+---
+
+## The dashboard — `lumencore ui`
+
+A dependency-free, Linear-style local web app at **`http://localhost:4317`** (loopback only). Reads your SQLite directly.
+
+| Route | |
+|-------|---|
+| **Dashboard** | stats · recently written · recently recalled · projects |
+| **Project** | filter by category / importance / tag, sort, search |
+| **Memory** | view + edit (title, content, tags, importance), delete, supersede; markdown preview |
+| **Graph** | live force-directed graph — nodes = memories (colored by category), edges = shared tags + supersession, clustered by project; **new memories spring in, recalled ones pulse**; zoom / pan |
+| **Global · Search · Timeline · Live** | global-scope browse · cross-project FTS · group-by-day · streaming write/recall feed |
+| **Settings** | data dir, scope, version, dark/light + accent toggle |
+| **⌘K** | command palette — jump to any project, search memories, navigate |
+
+---
+
+## Networked memory (shared brain)
+
+Run one LumenCore as a memory server that remote agents share over your LAN/Tailscale:
 
 ```bash
-lumencore init      # Initialize LumenCore in current project
-lumencore setup     # Run the global setup wizard
-lumencore serve     # Start the MCP server (used by Claude Code)
-lumencore status    # Show configuration and memory stats
-lumencore export    # Export memories to JSON for backup/migration
-lumencore version   # Show installed version
-lumencore reset     # Clear all data (use --force to confirm)
-lumencore help      # Show help
+lumencore serve-http --host <tailnet-ip> --port 4318 --token <secret>
 ```
 
-### Export Options
+Exposes a small HTTP API — `GET /v1/health`, `GET /v1/recall`, `POST /v1/remember`, `GET /v1/list` — with Bearer-token auth. Projects are addressed by **stable name**, so the same logical project resolves identically from any machine.
 
-```bash
-lumencore export             # Export current project memories
-lumencore export --global    # Export global memories only
-lumencore export --all       # Export all memories
-lumencore export -o backup.json  # Custom output file
-```
+> Note: this is a REST API for custom integrations (see `integrations/`). Generic MCP-over-HTTP for arbitrary MCP clients is on the roadmap.
 
-## Tools Available to Claude
+### WSL → Windows
+On WSL, `lumencore install` detects your Windows-side clients (under `/mnt/c/Users/<you>`) and registers them to launch LumenCore through `wsl.exe` — so your Windows tools and WSL tools share **one brain**, no duplicate install.
 
-Once connected, Claude Code can use these tools:
+---
 
-### `lumencore_activate`
-Called automatically at session start. Loads project context and scans new projects.
-
-### `remember`
-Store important project knowledge.
+## Architecture & data
 
 ```
-Parameters:
-- category: "decision" | "pattern" | "concept" | "note" | "task"
-- title: Short description
-- content: Full details
-- tags: Optional categorization tags
-- importance: 1-5 (default 3)
+ client (Claude Code / Cursor / …)
+   │  MCP (stdio)            ▲  HTTP (serve-http, optional)
+   ▼                         │
+ LumenCore  ──►  SQLite + FTS5  (one DB per project + a global DB)
 ```
 
-**Example prompt:**
-> "Remember that we decided to use Redux Toolkit for state management because it reduces boilerplate."
-
-### `recall`
-Search stored memories using full-text search.
-
 ```
-Parameters:
-- query: Search terms
-- category: Filter by type (optional)
-- limit: Max results (default 10)
+{dataDir}/projects/{project-id}/memories.db
+{dataDir}/global/memories.db
 ```
 
-**Example prompt:**
-> "Recall any decisions about state management."
+Config lives at `~/.config/lumencore/config.json` (XDG; platform-appropriate on macOS/Windows). All data is local — no external services on the default install.
 
-### `list_memories`
-Browse all stored memories for the current project.
+---
 
-### `forget`
-Delete a memory by ID.
+## Optional integrations
 
-## Memory Categories
+The `integrations/` directory holds optional, out-of-core glue (not compiled into the CLI):
 
-| Category | Use For |
-|----------|---------|
-| `decision` | Architectural choices and their rationale |
-| `pattern` | Code conventions, naming patterns, common approaches |
-| `concept` | Domain knowledge, business logic, terminology |
-| `note` | General observations and learnings |
-| `task` | Work items, TODOs, progress tracking |
+- **`integrations/hermes-agent/lumencore/`** — a memory-provider plugin for the Nous [Hermes Agent](https://github.com/NousResearch/hermes-agent) that makes a networked LumenCore (`serve-http`) Hermes's selectable `memory.provider`.
 
-## How It Works
-
-```
-┌─────────────────┐     MCP Protocol      ┌─────────────────┐
-│   Claude Code   │ ◄──────────────────► │   LumenCore     │
-└─────────────────┘                       │   MCP Server    │
-                                          ├─────────────────┤
-                                          │  Memory Service │
-                                          ├─────────────────┤
-                                          │  SQLite + FTS5  │
-                                          └─────────────────┘
-```
-
-1. Claude Code connects to LumenCore via the MCP protocol
-2. At session start, Claude calls `lumencore_activate` to load project context
-3. During the session, Claude uses `remember` to store important discoveries
-4. Claude uses `recall` to search for relevant knowledge when needed
-5. Memories persist in SQLite with full-text search indexing
-
-## Configuration
-
-Run `lumencore setup` to configure:
-
-1. **Memory scope**: Project-only (isolated) or project + global (shared knowledge)
-2. **Data directory**: Where to store SQLite databases
-
-Config is stored at:
-- Linux: `~/.config/lumencore/config.json`
-- macOS: `~/Library/Preferences/lumencore/config.json`
-- Windows: `%APPDATA%\lumencore\config.json`
-
-## Data Storage
-
-Memories are stored in SQLite databases:
-- **Project memories**: `{dataDir}/projects/{project-hash}/memories.db`
-- **Global memories**: `{dataDir}/global/memories.db`
-
-Each project is identified by a hash of its root path.
-
-## Privacy
-
-All data is stored locally on your machine. LumenCore does not send any data to external servers. The MCP server only communicates with the local Claude Code process via stdio.
+---
 
 ## Requirements
 
-- Node.js 18 or higher
-- Claude Code with MCP support
+- Node.js ≥ 18
+- An MCP-capable AI client
 
 ## License
 

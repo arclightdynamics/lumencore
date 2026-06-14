@@ -12,6 +12,14 @@ CREATE TABLE IF NOT EXISTS memories (
   content TEXT NOT NULL,
   tags TEXT NOT NULL DEFAULT '[]',
   importance INTEGER NOT NULL DEFAULT 3 CHECK (importance >= 1 AND importance <= 5),
+  source TEXT,
+  confidence REAL,
+  supersedes_id TEXT,
+  superseded_by_id TEXT,
+  last_accessed TEXT,
+  access_count INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT,
+  project_path TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -22,6 +30,23 @@ CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
 CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope);
 CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at DESC);
+
+-- Normalized tags. The memories.tags JSON column is kept for FTS and
+-- back-compat; these tables make tags independently indexable/queryable.
+CREATE TABLE IF NOT EXISTS tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS memory_tags (
+  memory_id TEXT NOT NULL,
+  tag_id INTEGER NOT NULL,
+  PRIMARY KEY (memory_id, tag_id),
+  FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag_id);
 
 -- Full-text search virtual table
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
@@ -66,6 +91,36 @@ export class MemoryDatabase {
 
   private initialize(): void {
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /**
+   * Add columns introduced after a database was first created. `CREATE TABLE IF
+   * NOT EXISTS` never alters an existing table, so older DBs miss the columns in
+   * SCHEMA until we ALTER them in here. Idempotent: only adds what's missing.
+   */
+  private migrate(): void {
+    const columns = this.db
+      .prepare('PRAGMA table_info(memories)')
+      .all() as { name: string }[];
+    const existing = new Set(columns.map((c) => c.name));
+
+    const additions: Record<string, string> = {
+      source: 'TEXT',
+      confidence: 'REAL',
+      supersedes_id: 'TEXT',
+      superseded_by_id: 'TEXT',
+      last_accessed: 'TEXT',
+      access_count: 'INTEGER NOT NULL DEFAULT 0',
+      expires_at: 'TEXT',
+      project_path: 'TEXT',
+    };
+
+    for (const [name, ddl] of Object.entries(additions)) {
+      if (!existing.has(name)) {
+        this.db.exec(`ALTER TABLE memories ADD COLUMN ${name} ${ddl}`);
+      }
+    }
   }
 
   getDatabase(): Database.Database {

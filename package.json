@@ -1,6 +1,6 @@
 {
   "name": "lumencore",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Persistent project memory for AI agents - MCP server for Claude Code",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,7 @@
     "lumencore": "./bin/lumencore.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-ui.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "serve": "node dist/index.js serve",
@@ -44,7 +44,9 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "better-sqlite3": "^11.0.0",
     "prompts": "^2.4.2",
-    "uuid": "^9.0.0"
+    "smol-toml": "^1.6.1",
+    "uuid": "^9.0.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
